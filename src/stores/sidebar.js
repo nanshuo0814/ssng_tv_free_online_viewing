@@ -12,6 +12,11 @@ export const useSidebarStore = defineStore('sidebar', {
       localStorage.setItem('sidebar-collapsed', this.isCollapsed ? 'true' : 'false')
     },
     
+    collapseSidebar() {
+      this.isCollapsed = true
+      localStorage.setItem('sidebar-collapsed', 'true')
+    },
+    
     initSidebar() {
       const savedCollapsedState = localStorage.getItem('sidebar-collapsed')
       if (savedCollapsedState !== null) {

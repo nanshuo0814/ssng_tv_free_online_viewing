@@ -1,13 +1,22 @@
 <template>
   <div class="top-navbar" :class="{ 'sidebar-collapsed': isCollapsed }">
     <div class="navbar-container">
+      <div class="left-section">
+        <router-link to="/" class="navbar-logo" v-if="isMobileAndCollapsed">
+          <img src="../assets/ssng.png" alt="Logo" class="logo-img" />
+        </router-link>
+        <div class="toggle-icon" @click="toggleSidebar" title="展开/收起侧边栏">
+          <Icon :name="isCollapsed ? 'Expand' : 'Fold'" color="#606266" />
+        </div>
+      </div>
+      
       <div class="search-box">
         <Icon name="search" color="#909399" class="search-icon" />
         <input
           v-model="searchQuery"
           @keyup.enter="handleSearch"
           type="text"
-          placeholder="搜索电影、电视剧..."
+          placeholder="搜索电影、电视剧、动漫、短剧、综艺..."
           class="search-input"
         />
       </div>
@@ -15,7 +24,6 @@
       <div class="navbar-actions">
         <router-link to="/history" class="nav-action" :class="{ 'active': isActive('/history') }" title="观看历史">
           <Icon name="history" :color="isActive('/history') ? '#2196f3' : '#909399'" />
-          <span class="action-text">历史记录</span>
         </router-link>
         
         <div class="nav-action theme-toggle" @click="toggleTheme" title="切换主题">
@@ -28,7 +36,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onBeforeMount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useThemeStore } from '../stores/theme'
 import { useSidebarStore } from '../stores/sidebar'
@@ -42,6 +50,16 @@ const sidebarStore = useSidebarStore()
 const searchQuery = ref('')
 const isDarkTheme = computed(() => themeStore.theme === 'dark')
 const isCollapsed = computed(() => sidebarStore.isCollapsed)
+const isMobile = ref(false)
+
+// 只在移动模式且侧边栏折叠时显示logo
+const isMobileAndCollapsed = computed(() => {
+  return isMobile.value && isCollapsed.value
+})
+
+function checkMobile() {
+  isMobile.value = window.innerWidth <= 992
+}
 
 function handleSearch() {
   if (searchQuery.value.trim()) {
@@ -57,9 +75,22 @@ function toggleTheme() {
   themeStore.toggleTheme()
 }
 
+function toggleSidebar() {
+  sidebarStore.toggleCollapse()
+}
+
 function isActive(path) {
   return route.path.includes(path)
 }
+
+onBeforeMount(() => {
+  checkMobile()
+  window.addEventListener('resize', checkMobile)
+})
+
+onMounted(() => {
+  checkMobile()
+})
 </script>
 
 <style scoped>
@@ -88,9 +119,38 @@ function isActive(path) {
   padding: 0 20px;
 }
 
+.left-section {
+  display: flex;
+  align-items: center;
+  min-width: 40px;
+}
+
+.navbar-logo {
+  display: none; /* 默认在PC端隐藏 */
+}
+
+.logo-img {
+  height: 28px;
+  width: auto;
+}
+
+.toggle-icon {
+  display: none; /* 默认在PC端隐藏 */
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+  margin-right: 16px;
+}
+
+.toggle-icon:hover {
+  background-color: var(--hover-background);
+}
+
 .search-box {
   position: relative;
-  flex: 0 1 500px;
+  flex: 0 1 550px;
+  margin-left: 10px;
 }
 
 .search-input {
@@ -120,22 +180,19 @@ function isActive(path) {
 .navbar-actions {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 0px; /* 移除PC端历史记录和暗黑模式图标间的间距 */
 }
 
 .nav-action {
   display: flex;
   align-items: center;
+  justify-content: center;
   cursor: pointer;
   color: var(--text-color);
   text-decoration: none;
-  padding: 8px 12px;
+  padding: 8px;
   border-radius: 4px;
   transition: background-color 0.2s;
-}
-
-.nav-action .el-icon {
-  margin-right: 6px;
 }
 
 .nav-action:hover {
@@ -148,11 +205,6 @@ function isActive(path) {
   background-color: var(--hover-background);
 }
 
-.action-text {
-  font-size: 14px;
-  line-height: 1;
-}
-
 .theme-toggle {
   display: flex;
   align-items: center;
@@ -160,28 +212,106 @@ function isActive(path) {
 }
 
 @media (max-width: 992px) {
-  .top-navbar {
-    left: var(--sidebar-width-collapsed);
+  .navbar-logo {
+    display: flex; /* 在移动端显示logo */
+    align-items: center;
+    margin-right: 0px;
   }
   
-  .action-text {
+  /* 放大移动端logo */
+  .logo-img {
+    height: 32px;
+    width: auto;
+  }
+  
+  /* 侧边栏展开时隐藏顶部logo */
+  .top-navbar:not(.sidebar-collapsed) .navbar-logo {
     display: none;
   }
   
-  .nav-action .el-icon {
-    margin-right: 0;
+  .toggle-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 0; /* 移除伸缩图标和搜索框之间的间距 */
+    /* 放大伸缩图标 */
+    padding: 10px;
+  }
+  
+  .top-navbar {
+    left: 0;
+  }
+  
+  .search-box {
+    margin-left: 0;
+    flex: 1;
+  }
+  
+  .navbar-actions {
+    gap: 2px; /* 减少历史记录和主题切换图标间距 */
+  }
+  
+  .nav-action {
+    padding: 6px;
   }
 }
 
 @media (max-width: 768px) {
   .search-box {
-    flex: 0 1 300px;
+    flex: 1;
+  }
+  
+  .navbar-container {
+    padding: 0 10px;
   }
 }
 
 @media (max-width: 576px) {
-  .search-box {
-    flex: 0 1 200px;
+  /* 小屏幕上更进一步放大logo和图标 */
+  .logo-img {
+    height: 30px;
+  }
+  
+  .toggle-icon {
+    margin-right: 0; /* 确保小屏幕上也没有间距 */
+    padding: 8px;
+  }
+  
+  .navbar-container {
+    padding: 0 8px;
+  }
+  
+  .navbar-actions {
+    gap: 0px; /* 完全移除间距 */
+  }
+  
+  .search-input {
+    padding: 8px 12px 8px 36px; /* 缩小搜索框内边距 */
+    font-size: 13px;
+  }
+  
+  .search-box .search-icon {
+    left: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  /* 更进一步调整极小屏幕 */
+  .logo-img {
+    height: 28px;
+  }
+  
+  .toggle-icon {
+    margin-right: 0;
+    padding: 6px;
+  }
+  
+  .navbar-container {
+    padding: 0 6px;
+  }
+  
+  .nav-action {
+    padding: 5px;
   }
 }
 </style> 

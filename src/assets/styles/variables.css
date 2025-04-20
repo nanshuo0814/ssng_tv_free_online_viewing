@@ -76,11 +76,19 @@
 @media (max-width: 768px) {
   :root {
     --content-padding: 20px;
+    --sidebar-width-collapsed: 0;
   }
 }
 
 @media (max-width: 576px) {
   :root {
     --content-padding: 15px;
+  }
+}
+
+@media (max-width: 992px) {
+  :root {
+    --sidebar-width-collapsed: 0;
+    --topbar-height: 56px;
   }
 } 

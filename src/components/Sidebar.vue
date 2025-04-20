@@ -1,7 +1,7 @@
 <template>
   <div class="sidebar-overlay" v-if="!isCollapsed && isMobile" @click="closeSidebar"></div>
-  <aside class="sidebar" :class="{ 'collapsed': isCollapsed, 'mobile': isMobile, 'mobile-open': isMobile && !isCollapsed }">
-    <div class="sidebar-header">
+  <aside class="sidebar" :class="{ 'collapsed': isCollapsed, 'mobile': isMobile, 'mobile-visible': !isCollapsed && isMobile }">
+    <div class="sidebar-header" v-if="!isCollapsed || !isMobile">
       <router-link to="/" class="sidebar-logo">
         <img src="../assets/ssng.png" alt="Logo" class="logo-img" />
         <span class="logo-text">烁烁南光在线免费影视</span>
@@ -33,7 +33,7 @@
         <Icon name="variety" :color="isActive('/variety') ? '#673ab7' : '#909399'" />
         <span>综艺</span>
       </router-link>
-      <router-link to="/history" class="nav-item nav-item-mobile" :class="{ 'active': isActive('/history') }">
+      <router-link to="/history" class="nav-item mobile-only" :class="{ 'active': isActive('/history') }">
         <Icon name="history" :color="isActive('/history') ? '#2196f3' : '#909399'" />
         <span>历史记录</span>
       </router-link>
@@ -93,6 +93,13 @@ function checkMobile() {
   }
 }
 
+// 监听路由变化，在手机端切换路由时自动收起侧边栏
+watch(() => route.path, (newPath) => {
+  if (isMobile.value && !isCollapsed.value) {
+    sidebarStore.collapseSidebar()
+  }
+})
+
 watch(isMobile, (newValue) => {
   if (newValue) {
     sidebarStore.collapseSidebar()
@@ -147,18 +154,10 @@ onMounted(() => {
 
 .sidebar.mobile {
   transform: translateX(-100%);
-  width: 240px;
 }
 
-.sidebar.mobile-open {
+.sidebar.mobile-visible {
   transform: translateX(0);
-}
-
-.sidebar.mobile.collapsed {
-  width: 0;
-  transform: translateX(0);
-  border-right: none;
-  box-shadow: none;
 }
 
 .sidebar-header {
@@ -288,19 +287,16 @@ onMounted(() => {
   margin-right: 0;
 }
 
-.nav-item-mobile {
+.mobile-only {
   display: none;
 }
 
-@media (max-width: 768px) {
-  .sidebar.mobile.collapsed {
-    width: 0;
-  }
-  
-  .nav-item-mobile {
+@media (max-width: 992px) {
+  .mobile-only {
     display: flex;
   }
   
+  /* 在手机端完全隐藏侧边栏底部 */
   .sidebar-footer {
     display: none;
   }
