@@ -22,7 +22,7 @@
             <h3 class="history-title" @click="playMovie(item)">{{ item.title }}</h3>
             <p class="history-time">观看时间: {{ formatDate(item.timestamp) }}</p>
             <div class="history-actions">
-              <el-button type="primary" size="small" @click="playMovie(item)">
+              <el-button type="primary" size="small" @click="playMovie(item)" color="#2196f3">
                 继续观看
               </el-button>
               <el-button type="danger" size="small" @click="removeHistory(item.id)">
@@ -186,7 +186,7 @@ const confirmClearHistory = () => {
 }
 
 .history-title:hover {
-  color: var(--primary-color);
+  color: #2196f3;
 }
 
 .history-time {

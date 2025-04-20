@@ -14,7 +14,7 @@
       
       <div class="navbar-actions">
         <router-link to="/history" class="nav-action" :class="{ 'active': isActive('/history') }" title="观看历史">
-          <Icon name="history" :color="isActive('/history') ? '#607d8b' : '#909399'" />
+          <Icon name="history" :color="isActive('/history') ? '#2196f3' : '#909399'" />
           <span class="action-text">历史记录</span>
         </router-link>
         

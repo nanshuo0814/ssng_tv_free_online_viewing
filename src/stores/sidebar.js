@@ -2,7 +2,8 @@ import { defineStore } from 'pinia'
 
 export const useSidebarStore = defineStore('sidebar', {
   state: () => ({
-    isCollapsed: false
+    isCollapsed: false,
+    showFps: true // 永久显示FPS
   }),
   
   actions: {
@@ -12,10 +13,13 @@ export const useSidebarStore = defineStore('sidebar', {
     },
     
     initSidebar() {
-      const savedState = localStorage.getItem('sidebar-collapsed')
-      if (savedState !== null) {
-        this.isCollapsed = savedState === 'true'
+      const savedCollapsedState = localStorage.getItem('sidebar-collapsed')
+      if (savedCollapsedState !== null) {
+        this.isCollapsed = savedCollapsedState === 'true'
       }
+      
+      // 始终显示FPS
+      this.showFps = true
     }
   }
 }) 
