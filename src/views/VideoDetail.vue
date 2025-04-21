@@ -144,7 +144,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { getVideoDetail } from '../services/apiService';
+import axios from 'axios';
 import { ElMessage } from 'element-plus';
 
 // 从路由参数中获取视频ID
@@ -245,8 +245,14 @@ async function loadVideoDetail() {
   error.value = null;
   
   try {
-    const result = await getVideoDetail(videoId.value);
-    
+    const response = await axios.get(`/api/api.php/provide/vod/`, {
+      params: {
+        ac: 'detail',
+        ids: videoId.value
+      }
+    })
+    const result = response.data;
+
     
     if (result && result.code === 1 && result.list && result.list.length > 0) {
       videoInfo.value = result.list[0];

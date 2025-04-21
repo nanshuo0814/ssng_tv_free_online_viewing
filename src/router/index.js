@@ -61,7 +61,7 @@ const routes = [
   {
     path: '/video/detail/:id',
     name: 'videoDetailNew',
-    component: () => import('@/views/ApiVideoDetail.vue'),
+    component: () => import('@/views/VideoDetail.vue'),
     props: true
   },
   {
