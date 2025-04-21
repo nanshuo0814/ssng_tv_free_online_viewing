@@ -1,5 +1,8 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import { saveCurrentNavigationState, getLastNavigationState } from '@/utils/meta'
+import HomePage from '../views/HomePage.vue'
+import Play from '../views/Play.vue'
+import MovieNav from '../views/MovieNav.vue'
 
 const routes = [
   {
@@ -9,7 +12,7 @@ const routes = [
   {
     path: '/home',
     name: 'Home',
-    component: () => import('@/views/HomePage.vue')
+    component: HomePage
   },
   {
     path: '/tv',
@@ -20,8 +23,7 @@ const routes = [
   {
     path: '/movies',
     name: 'Movies',
-    component: () => import('@/views/Category.vue'),
-    props: { type: 'movie' }
+    component: MovieNav
   },
   {
     path: '/anime',
@@ -71,13 +73,20 @@ const routes = [
   {
     path: '/:mediaType/:id/play',
     name: 'Play',
-    component: () => import('@/views/Play.vue'),
+    component: Play,
     props: true
   },
   {
     path: '/category/:type',
     name: 'Category',
     component: () => import('@/views/Category.vue'),
+    props: true
+  },
+  // 资源站视频详情路由（保留但不在导航中显示）
+  {
+    path: '/video/:id',
+    name: 'videoDetail',
+    component: () => import('@/views/ApiVideoDetail.vue'),
     props: true
   },
   {

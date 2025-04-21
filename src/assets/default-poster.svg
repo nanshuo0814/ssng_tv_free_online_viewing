@@ -1,6 +1,17 @@
-<svg width="300" height="450" viewBox="0 0 300 450" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="300" height="450" fill="#e0e0e0"/>
-  <path d="M150 225C183.137 225 210 198.137 210 165C210 131.863 183.137 105 150 105C116.863 105 90 131.863 90 165C90 198.137 116.863 225 150 225Z" fill="#9e9e9e"/>
-  <path d="M231 345C231 302.906 195.094 270 150 270C104.906 270 69 302.906 69 345" stroke="#9e9e9e" stroke-width="30"/>
-  <path d="M150 195C166.569 195 180 181.569 180 165C180 148.431 166.569 135 150 135C133.431 135 120 148.431 120 165C120 181.569 133.431 195 150 195Z" fill="#e0e0e0"/>
+<svg width="180" height="250" viewBox="0 0 180 250" xmlns="http://www.w3.org/2000/svg">
+  <!-- 背景 -->
+  <rect width="180" height="250" fill="#e0e0e0"/>
+  
+  <!-- 电影图标 -->
+  <g transform="translate(60, 85)">
+    <rect x="0" y="0" width="60" height="40" rx="5" fill="#a0a0a0"/>
+    <circle cx="15" cy="15" r="10" fill="#d0d0d0"/>
+    <circle cx="45" cy="15" r="10" fill="#d0d0d0"/>
+    <rect x="-10" y="15" width="20" height="3" fill="#d0d0d0"/>
+    <rect x="30" y="15" width="20" height="3" fill="#d0d0d0"/>
+  </g>
+  
+  <!-- 文字 -->
+  <text x="90" y="160" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="#707070">暂无图片</text>
+  <text x="90" y="180" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#808080">No Image</text>
 </svg> 

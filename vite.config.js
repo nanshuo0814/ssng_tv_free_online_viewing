@@ -10,6 +10,13 @@ export default defineConfig({
     }
   },
   server: {
-    port: 5174
+    port: 5174,
+    proxy: {
+      '/api': {
+        target: 'https://www.heimuer.tv',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, '')
+      }
+    }
   }
 }) 

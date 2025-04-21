@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>视频播放器</title>
+  <link rel="icon" href="/favicon.ico">
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #000;
+      font-family: 'Roboto', 'Helvetica', 'Arial', sans-serif;
+    }
+    
+    .player-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+    
+    .iframe-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+    
+    .player-header {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 60px;
+      background-color: rgba(0, 0, 0, 0.5);
+      color: #fff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 20px;
+      box-sizing: border-box;
+      z-index: 10;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    
+    .player-container:hover .player-header {
+      opacity: 1;
+    }
+    
+    .player-title {
+      font-size: 18px;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 80%;
+    }
+    
+    .player-actions {
+      display: flex;
+      gap: 15px;
+    }
+    
+    .player-button {
+      background: none;
+      border: none;
+      color: #fff;
+      cursor: pointer;
+      font-size: 14px;
+      padding: 8px 15px;
+      border-radius: 4px;
+      background-color: rgba(64, 158, 255, 0.8);
+      transition: background-color 0.3s;
+    }
+    
+    .player-button:hover {
+      background-color: rgba(64, 158, 255, 1);
+    }
+    
+    .loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #fff;
+      font-size: 18px;
+    }
+  </style>
+</head>
+<body>
+  <div id="app" class="player-container">
+    <div class="player-header">
+      <div class="player-title" id="videoTitle">加载中...</div>
+      <div class="player-actions">
+        <button class="player-button" onclick="window.close()">关闭</button>
+        <button class="player-button" onclick="window.history.back()">返回</button>
+      </div>
+    </div>
+    
+    <div id="loadingIndicator" class="loading">加载中...</div>
+    
+    <div id="playerFrame" class="iframe-container"></div>
+  </div>
+  
+  <script>
+    // 从URL参数中获取视频地址和标题
+    function getUrlParams() {
+      const params = new URLSearchParams(window.location.search);
+      const url = params.get('url') || '';
+      const title = params.get('title') || '未知视频';
+      return { url, title };
+    }
+    
+    // 初始化播放器
+    function initPlayer() {
+      const { url, title } = getUrlParams();
+      const titleElement = document.getElementById('videoTitle');
+      const playerFrame = document.getElementById('playerFrame');
+      const loadingIndicator = document.getElementById('loadingIndicator');
+      
+      // 设置标题
+      titleElement.textContent = title;
+      document.title = `正在播放: ${title}`;
+      
+      if (!url) {
+        loadingIndicator.textContent = '播放地址无效';
+        return;
+      }
+      
+      // 创建iframe
+      const iframe = document.createElement('iframe');
+      iframe.style.width = '100%';
+      iframe.style.height = '100%';
+      iframe.style.border = 'none';
+      iframe.allowFullscreen = true;
+      
+      // 根据URL类型选择不同的播放方式
+      if (url.includes('.m3u8')) {
+        // 使用HLS.js播放m3u8
+        iframe.src = `https://api.pearktrue.cn/api/player/index.php?url=${encodeURIComponent(url)}`;
+      } else if (url.includes('.mp4') || url.includes('.avi') || url.includes('.mkv')) {
+        // 直接播放MP4等格式
+        iframe.src = url;
+      } else {
+        // 使用通用解析接口
+        iframe.src = `https://jx.jsonplayer.com/player/?url=${encodeURIComponent(url)}`;
+      }
+      
+      // 监听iframe加载事件
+      iframe.onload = function() {
+        loadingIndicator.style.display = 'none';
+      };
+      
+      // 添加到容器
+      playerFrame.appendChild(iframe);
+    }
+    
+    // 页面加载完成后初始化播放器
+    window.onload = initPlayer;
+  </script>
+</body>
+</html> 

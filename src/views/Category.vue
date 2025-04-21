@@ -2,65 +2,85 @@
   <div class="category">
     <div class="category-header">
       <h2>{{ categoryTitle }}</h2>
-      <div class="filter-bar">
-        <el-select v-model="filterOrder" placeholder="排序方式" class="filter-select">
+      
+      <!-- 电视剧分类选项卡 -->
+      <div v-if="currentType === 'tv'" class="drama-type-tabs">
+        <div 
+          v-for="type in dramaTypes" 
+          :key="type.value" 
+          class="drama-tab" 
+          :class="{ 'active': dramaType === type.value }"
+          @click="selectDramaType(type.value)"
+        >
+          {{ type.label }}
+        </div>
+      </div>
+      
+      <!-- 恢复筛选条件区域 -->
+      <!-- <div class="filter-bar">
+        <el-select v-model="filterOrder" placeholder="排序方式" class="filter-select" @change="handleFilterChange">
           <el-option label="热门排序" value="popular"></el-option>
           <el-option label="评分排序" value="rating"></el-option>
           <el-option label="最新上线" value="newest"></el-option>
         </el-select>
-        <el-select v-model="filterRegion" placeholder="地区" class="filter-select">
+        <el-select v-model="filterYear" placeholder="年代" class="filter-select" @change="handleFilterChange">
           <el-option label="全部" value="all"></el-option>
-          <el-option label="华语" value="china"></el-option>
-          <el-option label="欧美" value="western"></el-option>
-          <el-option label="日韩" value="eastasia"></el-option>
-          <el-option label="其他" value="other"></el-option>
-        </el-select>
-        <el-select v-model="filterYear" placeholder="年代" class="filter-select">
-          <el-option label="全部" value="all"></el-option>
+          <el-option label="2024" value="2024"></el-option>
           <el-option label="2023" value="2023"></el-option>
           <el-option label="2022" value="2022"></el-option>
           <el-option label="2021" value="2021"></el-option>
           <el-option label="2020" value="2020"></el-option>
-          <el-option label="2019" value="2019"></el-option>
           <el-option label="2010年代" value="2010s"></el-option>
           <el-option label="2000年代" value="2000s"></el-option>
           <el-option label="更早" value="earlier"></el-option>
         </el-select>
+      </div> -->
       </div>
+
+    <!-- 加载状态 -->
+    <div v-if="loading" class="loading-container">
+      <el-skeleton :rows="5" animated />
     </div>
 
-    <div class="movie-grid">
-      <div v-for="movie in filteredMovies" :key="movie.id" class="movie-card">
+    <!-- 电影/剧集网格 -->
+    <div v-else class="movie-grid">
+      <div v-for="movie in displayMovies" :key="movie.vod_id" class="movie-card">
+        <router-link :to="`/play/${currentType.value}/${movie.vod_id}`" class="movie-link">
         <div class="movie-poster">
-          <img :src="movie.poster" :alt="movie.title">
-          <div class="movie-overlay">
-            <el-button round @click="playMovie(movie)">
-              <el-icon><VideoPlay /></el-icon> 播放
-            </el-button>
-            <el-button round @click="addToFavorite(movie)">
-              <el-icon><Star /></el-icon>
-            </el-button>
-          </div>
+            <img 
+              :src="getImageUrl(movie.vod_pic)" 
+              :alt="movie.vod_name"
+              @error="handleImageError($event)"
+            >
+            <!-- 显示集数标签 -->
+            <div v-if="movie.vod_remarks" class="episode-badge">
+              {{ movie.vod_remarks }}
+            </div>
+            
+            <!-- 新增：影片详情悬浮层 -->
+            <div class="movie-detail-overlay">
+              <h4 class="detail-title">{{ movie.vod_name }}</h4>
+              <div v-if="movie.vod_year" class="detail-meta">{{ movie.vod_year }}</div>
+              <div v-if="movie.vod_score" class="detail-score">评分: {{ movie.vod_score }}</div>
+              <div v-if="movie.vod_actor" class="detail-actors">
+                {{ truncateText(movie.vod_actor, 30) }}
+              </div>
+              <div v-if="movie.vod_content" class="detail-desc">
+                {{ truncateText(movie.vod_content, 50) }}
+              </div>
+            </div>
         </div>
         <div class="movie-info">
-          <h3 class="movie-title">{{ movie.title }}</h3>
-          <p class="movie-score">
-            <el-rate 
-              v-model="movie.score" 
-              disabled 
-              text-color="#ff9900"
-              :max="5"
-              :score-template="movie.score.toFixed(1)"
-            ></el-rate>
-            <span>{{ movie.score.toFixed(1) }}</span>
-          </p>
+            <h3 class="movie-title">{{ movie.vod_name }}</h3>
         </div>
+        </router-link>
       </div>
     </div>
 
+    <!-- 分页 -->
     <div class="pagination-container">
       <el-pagination
-        :current-page="currentPage"
+        v-model:current-page="currentPage"
         :page-size="pageSize"
         :total="totalMovies"
         layout="total, prev, pager, next"
@@ -71,11 +91,12 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, defineProps } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useFavoriteStore } from '@/stores/favorite'
 import { ElMessage } from 'element-plus'
 import { Star, VideoPlay } from '@element-plus/icons-vue'
+import axios from 'axios'
 
 const props = defineProps({
   type: {
@@ -88,14 +109,31 @@ const route = useRoute()
 const router = useRouter()
 const favoriteStore = useFavoriteStore()
 
-// 筛选条件
-const filterOrder = ref('popular')
-const filterRegion = ref('all')
-const filterYear = ref('all')
+// 状态变量
+const loading = ref(true)
+const movies = ref([])
 const currentPage = ref(1)
 const pageSize = ref(24)
+const totalMovies = ref(0)
+// 恢复筛选条件变量
+const filterOrder = ref('popular')
+const filterYear = ref('all')
 
-// 获取当前分类类型，优先使用props中的type，如果没有则使用路由参数
+// 电视剧分类
+const dramaType = ref('国产剧')
+const dramaTypes = [
+  { label: '国产剧', value: '国产剧', typeId: 13 },
+  { label: '港剧', value: '港剧', typeId: 14 },
+  { label: '韩剧', value: '韩剧', typeId: 15 },
+  { label: '日剧', value: '日剧', typeId: 16 },
+  { label: '泰剧', value: '泰剧', typeId: 28 },
+  { label: '台剧', value: '台剧', typeId: 29 },
+  { label: '欧美剧', value: '欧美剧', typeId: 30 },
+  { label: '新马剧', value: '新马剧', typeId: 31 },
+  { label: '其他剧', value: '其他剧', typeId: 32 }
+]
+
+// 获取当前分类类型
 const currentType = computed(() => props.type || route.params.type)
 
 // 计算分类标题
@@ -110,282 +148,346 @@ const categoryTitle = computed(() => {
   return typeMap[currentType.value] || '未知分类'
 })
 
-// 模拟电影数据（实际项目应该从API获取）
-const allMovies = computed(() => {
-  const type = currentType.value
-  
-  if (type === 'movie') {
-    return [
-      {
-        id: 1,
-        title: '这个杀手不太冷',
-        score: 4.7,
-        poster: 'https://img2.doubanio.com/view/photo/s_ratio_poster/public/p511118051.webp',
-        type: 'movie',
-        region: 'western',
-        year: '1994'
-      },
-      {
-        id: 2,
-        title: '肖申克的救赎',
-        score: 4.8,
-        poster: 'https://img2.doubanio.com/view/photo/s_ratio_poster/public/p480747492.webp',
-        type: 'movie',
-        region: 'western',
-        year: '1994'
-      },
-      {
-        id: 3,
-        title: '霸王别姬',
-        score: 4.6,
-        poster: 'https://img1.doubanio.com/view/photo/s_ratio_poster/public/p2561716440.webp',
-        type: 'movie',
-        region: 'china',
-        year: '1993'
-      },
-      {
-        id: 4,
-        title: '海上钢琴师',
-        score: 4.5,
-        poster: 'https://img9.doubanio.com/view/photo/s_ratio_poster/public/p2574551676.webp',
-        type: 'movie',
-        region: 'western',
-        year: '1998'
-      },
-      {
-        id: 5,
-        title: '无间道',
-        score: 4.6,
-        poster: 'https://img2.doubanio.com/view/photo/s_ratio_poster/public/p2564556863.webp',
-        type: 'movie',
-        region: 'china',
-        year: '2003'
-      },
-      {
-        id: 8,
-        title: '楚门的世界',
-        score: 4.6,
-        poster: 'https://img2.doubanio.com/view/photo/s_ratio_poster/public/p479682972.webp',
-        type: 'movie',
-        region: 'western',
-        year: '1998'
-      },
-      {
-        id: 9,
-        title: '大话西游之大圣娶亲',
-        score: 4.5,
-        poster: 'https://img9.doubanio.com/view/photo/s_ratio_poster/public/p2455050536.webp',
-        type: 'movie',
-        region: 'china',
-        year: '1995'
-      },
-      {
-        id: 11,
-        title: '泰坦尼克号',
-        score: 4.4,
-        poster: 'https://img9.doubanio.com/view/photo/s_ratio_poster/public/p457760035.webp',
-        type: 'movie',
-        region: 'western',
-        year: '1997'
-      }
-    ]
-  } else if (type === 'tv') {
-    return [
-      {
-        id: 101,
-        title: '破产姐妹',
-        score: 4.2,
-        poster: 'https://img1.doubanio.com/view/photo/s_ratio_poster/public/p2184505167.webp',
-        type: 'tv',
-        region: 'western',
-        year: '2011'
-      },
-      {
-        id: 102,
-        title: '老友记',
-        score: 4.6,
-        poster: 'https://img2.doubanio.com/view/photo/s_ratio_poster/public/p696162337.webp',
-        type: 'tv',
-        region: 'western',
-        year: '1994'
-      },
-      {
-        id: 103,
-        title: '请回答1988',
-        score: 4.7,
-        poster: 'https://img9.doubanio.com/view/photo/s_ratio_poster/public/p2272563445.webp',
-        type: 'tv',
-        region: 'eastasia',
-        year: '2015'
-      },
-      {
-        id: 104,
-        title: '权力的游戏',
-        score: 4.4,
-        poster: 'https://img1.doubanio.com/view/photo/s_ratio_poster/public/p2554892299.webp',
-        type: 'tv',
-        region: 'western',
-        year: '2011'
-      }
-    ]
-  } else if (type === 'anime') {
-    return [
-      {
-        id: 6,
-        title: '天空之城',
-        score: 4.5,
-        poster: 'https://img1.doubanio.com/view/photo/s_ratio_poster/public/p2554525534.webp',
-        type: 'anime',
-        region: 'eastasia',
-        year: '1986'
-      },
-      {
-        id: 7,
-        title: '千与千寻',
-        score: 4.7,
-        poster: 'https://img1.doubanio.com/view/photo/s_ratio_poster/public/p2557573348.webp',
-        type: 'anime',
-        region: 'eastasia',
-        year: '2001'
-      },
-      {
-        id: 10,
-        title: '疯狂动物城',
-        score: 4.5,
-        poster: 'https://img1.doubanio.com/view/photo/s_ratio_poster/public/p2315672647.webp',
-        type: 'anime',
-        region: 'western',
-        year: '2016'
-      },
-      {
-        id: 12,
-        title: '龙猫',
-        score: 4.5,
-        poster: 'https://img9.doubanio.com/view/photo/s_ratio_poster/public/p2540924496.webp',
-        type: 'anime',
-        region: 'eastasia',
-        year: '1988'
-      }
-    ]
-  } else if (type === 'variety') {
-    return [
-      {
-        id: 201,
-        title: '极限挑战',
-        score: 4.3,
-        poster: 'https://img2.doubanio.com/view/photo/s_ratio_poster/public/p2238649383.webp',
-        type: 'variety',
-        region: 'china',
-        year: '2015'
-      },
-      {
-        id: 202,
-        title: '奔跑吧兄弟',
-        score: 4.1,
-        poster: 'https://img9.doubanio.com/view/photo/s_ratio_poster/public/p2195798632.webp',
-        type: 'variety',
-        region: 'china',
-        year: '2014'
-      }
-    ]
+// 获取当前分类的API类型ID
+const currentTypeId = computed(() => {
+  if (currentType.value === 'tv') {
+    // 根据选择的剧集类型返回对应的typeId
+    const selectedType = dramaTypes.find(type => type.value === dramaType.value)
+    return selectedType ? selectedType.typeId : 13 // 默认国产剧
+  } else if (currentType.value === 'movie') {
+    return 1 // 电影
+  } else if (currentType.value === 'anime') {
+    return 4 // 动漫
+  } else if (currentType.value === 'variety') {
+    return 3 // 综艺
+  } else if (currentType.value === 'shorts') {
+    return 22 // 短剧
   }
-  
-  return []
+  return 0
 })
 
-// 重置分页和筛选条件
-const resetFilters = () => {
-  currentPage.value = 1
-  filterOrder.value = 'popular'
-  filterRegion.value = 'all'
-  filterYear.value = 'all'
-}
-
-// 监听类型变化，重置相关状态
-watch(currentType, () => {
-  resetFilters()
-}, { immediate: true })
-
-// 筛选电影
-const filteredMovies = computed(() => {
-  let result = [...allMovies.value]
-  
-  // 地区筛选
-  if (filterRegion.value !== 'all') {
-    result = result.filter(movie => movie.region === filterRegion.value)
-  }
+// 显示的电影列表
+const displayMovies = computed(() => {
+  let result = [...movies.value]
   
   // 年代筛选
   if (filterYear.value !== 'all') {
+    result = result.filter(movie => {
+      // 从movie.vod_year获取年份
+      const year = movie.vod_year ? parseInt(movie.vod_year) : 0
+      
     if (filterYear.value === '2010s') {
-      result = result.filter(movie => {
-        const year = parseInt(movie.year)
         return year >= 2010 && year < 2020
-      })
     } else if (filterYear.value === '2000s') {
-      result = result.filter(movie => {
-        const year = parseInt(movie.year)
         return year >= 2000 && year < 2010
-      })
     } else if (filterYear.value === 'earlier') {
-      result = result.filter(movie => parseInt(movie.year) < 2000)
+        return year < 2000
     } else {
-      result = result.filter(movie => movie.year === filterYear.value)
+        return movie.vod_year === filterYear.value
     }
+    })
   }
   
   // 排序
   if (filterOrder.value === 'rating') {
-    result.sort((a, b) => b.score - a.score)
+    result.sort((a, b) => parseFloat(b.vod_score || 0) - parseFloat(a.vod_score || 0))
   } else if (filterOrder.value === 'newest') {
-    result.sort((a, b) => parseInt(b.year) - parseInt(a.year))
+    result.sort((a, b) => {
+      const dateA = a.vod_time ? new Date(a.vod_time) : new Date(0)
+      const dateB = b.vod_time ? new Date(b.vod_time) : new Date(0)
+      return dateB - dateA
+    })
   }
   
   return result
 })
 
-// 计算总电影数
-const totalMovies = computed(() => filteredMovies.value.length)
+// 加载影视数据
+const fetchMovies = async () => {
+  try {
+    loading.value = true
+    const typeId = currentTypeId.value
+    
+    if (!typeId) {
+      movies.value = []
+      totalMovies.value = 0
+      loading.value = false
+      return
+    }
+    
+    console.log(`正在加载类型ID: ${typeId} 的数据，页码: ${currentPage.value}`)
+    try {
+      // 尝试使用不同的API接口获取数据
+      const response = await axios.get(`/api/api.php/provide/vod/`, {
+        params: {
+          ac: 'videolist',  // 尝试使用videolist接口
+          pg: currentPage.value,
+          t: typeId,
+          pagesize: pageSize.value,
+        }
+      })
+      
+      if (response.data && response.data.code === 1 && response.data.list && response.data.list.length > 0) {
+        console.log(`成功获取数据，共 ${response.data.list?.length || 0} 条记录，总数 ${response.data.total || 0}`)
+        // 过滤掉没有海报的影片
+        movies.value = response.data.list.filter(movie => movie.vod_pic && movie.vod_pic !== '')
+        totalMovies.value = parseInt(response.data.total) || 0
+        
+        // 输出获取到的第一条数据以供调试
+        if (movies.value.length > 0) {
+          console.log('第一条影片数据示例:', JSON.stringify(movies.value[0]))
+        }
+      } else {
+        console.error('API返回错误或数据为空:', response.data)
+        // 如果videolist接口失败，尝试使用list接口
+        tryFallbackApi(typeId)
+      }
+    } catch (error) {
+      console.error('API请求出错:', error)
+      tryFallbackApi(typeId)
+    }
+  } catch (error) {
+    console.error('获取数据出错:', error)
+    loadFallbackData()
+  } finally {
+    loading.value = false
+  }
+}
 
-// 分页处理
+// 尝试使用备用API
+const tryFallbackApi = async (typeId) => {
+  try {
+    const response = await axios.get(`/api/api.php/provide/vod/`, {
+      params: {
+        ac: 'list',  // 尝试使用list接口
+        pg: currentPage.value,
+        t: typeId,
+        pagesize: pageSize.value,
+      }
+    })
+    
+    if (response.data && response.data.code === 1 && response.data.list && response.data.list.length > 0) {
+      console.log(`备用API成功获取数据，共 ${response.data.list?.length || 0} 条记录`)
+      // 过滤掉没有海报的影片
+      movies.value = response.data.list.filter(movie => movie.vod_pic && movie.vod_pic !== '')
+      totalMovies.value = parseInt(response.data.total) || 0
+    } else {
+      console.error('备用API也失败:', response.data)
+      loadFallbackData(typeId)
+    }
+  } catch (error) {
+    console.error('备用API请求出错:', error)
+    loadFallbackData(typeId)
+  }
+}
+
+// 加载备用数据
+const loadFallbackData = (typeId) => {
+  console.log('加载备用数据')
+  ElMessage.warning('API请求失败，显示模拟数据')
+  
+  // 根据类型加载不同的备用数据
+  if (typeId >= 13 && typeId <= 21) { // 电视剧类型
+    // 使用截图中的一些电视剧名称
+    movies.value = [
+      { 
+        vod_id: '1001', 
+        vod_name: '借命而生', 
+        vod_pic: 'https://img9.doubanio.com/view/photo/s_ratio_poster/public/p2872088683.webp', 
+        vod_remarks: '更新至8集' 
+      },
+      { 
+        vod_id: '1002', 
+        vod_name: '千秋令', 
+        vod_pic: 'https://img9.doubanio.com/view/photo/s_ratio_poster/public/p2892412130.webp', 
+        vod_remarks: '更新至24集' 
+      },
+      { 
+        vod_id: '1003', 
+        vod_name: '无忧渡', 
+        vod_pic: 'https://img9.doubanio.com/view/photo/s_ratio_poster/public/p2892055553.webp', 
+        vod_remarks: '更新至24集' 
+      },
+      { 
+        vod_id: '1004', 
+        vod_name: '吃饭跑步和恋爱', 
+        vod_pic: 'https://img9.doubanio.com/view/photo/s_ratio_poster/public/p2896546624.webp', 
+        vod_remarks: '更新至23集' 
+      },
+      { 
+        vod_id: '1005', 
+        vod_name: '麻衣神婆', 
+        vod_pic: 'https://img9.doubanio.com/view/photo/s_ratio_poster/public/p2897209078.webp', 
+        vod_remarks: '更新至12集' 
+      },
+      { 
+        vod_id: '1006', 
+        vod_name: '权宠', 
+        vod_pic: 'https://img9.doubanio.com/view/photo/s_ratio_poster/public/p2903099161.webp', 
+        vod_remarks: '更新至13集' 
+      },
+      { 
+        vod_id: '1007', 
+        vod_name: '她的机器亦', 
+        vod_pic: 'https://img9.doubanio.com/view/photo/s_ratio_poster/public/p2900018993.webp', 
+        vod_remarks: '更新至20集' 
+      },
+      { 
+        vod_id: '1008', 
+        vod_name: '走火', 
+        vod_pic: 'https://img9.doubanio.com/view/photo/s_ratio_poster/public/p2899635076.webp', 
+        vod_remarks: '更新至23集' 
+      }
+    ]
+  } else {
+    // 其他类型的备用数据
+    movies.value = Array.from({ length: 12 }, (_, i) => ({
+      vod_id: `${2000 + i}`,
+      vod_name: `示例内容 ${i + 1}`,
+      vod_pic: `https://img9.doubanio.com/view/photo/s_ratio_poster/public/p${2872088680 + i}.webp`,
+      vod_remarks: `示例 ${i + 1}`
+    }))
+  }
+  
+  totalMovies.value = movies.value.length
+}
+
+// 处理页码变化
 const handlePageChange = (page) => {
   currentPage.value = page
   window.scrollTo(0, 0)
+  fetchMovies()
 }
 
+// 选择剧集类型
+const selectDramaType = (type) => {
+  dramaType.value = type
+  currentPage.value = 1
+  fetchMovies()
+}
+
+// 播放电影/剧集
 const playMovie = (movie) => {
-  router.push(`/play/${movie.type}/${movie.id}`)
-  ElMessage.success(`正在播放: ${movie.title}`)
+  router.push(`/play/${currentType.value}/${movie.vod_id}`)
+  ElMessage.success(`正在播放: ${movie.vod_name}`)
 }
 
+// 添加到收藏
 const addToFavorite = (movie) => {
   favoriteStore.addFavorite({
-    id: movie.id.toString(),
-    title: movie.title,
-    url: `/play/${movie.type}/${movie.id}`,
+    id: movie.vod_id.toString(),
+    title: movie.vod_name,
+    url: `/play/${currentType.value}/${movie.vod_id}`,
     site: 'SSNG TV',
-    type: movie.type
+    type: currentType.value,
+    poster: movie.vod_pic
   })
   ElMessage.success('已添加到收藏')
+}
+
+// 恢复处理筛选条件变化的方法
+const handleFilterChange = () => {
+  currentPage.value = 1
+  fetchMovies()
+}
+
+// 监听类型变化
+watch([currentType, currentTypeId], () => {
+  currentPage.value = 1
+  fetchMovies()
+}, { immediate: true })
+
+// 页面加载时获取数据
+onMounted(() => {
+  fetchMovies()
+})
+
+// 处理图片URL
+const getImageUrl = (url) => {
+  if (!url) {
+    return '/src/assets/default-poster.svg'
+  }
+  
+  // 如果是相对路径，添加基础URL
+  if (url.startsWith('/')) {
+    return url
+  }
+  
+  // 检查URL是否有效，如果无法加载则使用默认图片
+  if (url.includes('null') || url === 'undefined' || url === '') {
+    return '/src/assets/default-poster.svg'
+  }
+  
+  // 有些API返回的图片可能带有http，确保使用https
+  if (url.startsWith('http:')) {
+    return url.replace('http:', 'https:')
+  }
+  
+  return url
+}
+
+// 处理图片加载失败
+const handleImageError = (event) => {
+  event.target.src = '/src/assets/default-poster.svg'
+}
+
+// 新增：截断文本函数
+const truncateText = (text, maxLength) => {
+  if (!text) return '';
+  return text.length > maxLength ? text.slice(0, maxLength) + '...' : text;
 }
 </script>
 
 <style scoped>
 .category {
   padding: 0 0 20px;
+  background-color: #f8f8f8;
+  border-radius: 8px;
 }
 
 .category-header {
-  margin-bottom: 20px;
+  margin-bottom: 0px;
+  padding: 15px 15px 5px;
 }
 
 .category-header h2 {
   margin: 0 0 20px;
   font-size: 24px;
   font-weight: 600;
-  color: var(--text-color);
+  color: #333;
 }
 
+/* 电视剧分类选项卡 */
+.drama-type-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  overflow-x: auto;
+}
+
+.drama-tab {
+  padding: 8px 20px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s;
+  white-space: nowrap;
+  background-color: #f1f1f1;
+  color: #333;
+}
+
+.drama-tab:hover {
+  background-color: #e0e0e0;
+}
+
+.drama-tab.active {
+  background-color: #8e44ad; /* 紫色背景 */
+  color: white;
+}
+
+/* 恢复筛选条件样式 */
 .filter-bar {
   display: flex;
   gap: 15px;
@@ -397,11 +499,18 @@ const addToFavorite = (movie) => {
   width: 150px;
 }
 
+/* 加载状态 */
+.loading-container {
+  padding: 20px;
+}
+
+/* 影片网格 */
 .movie-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 20px;
   margin-bottom: 30px;
+  padding: 0 15px;
 }
 
 .movie-card {
@@ -415,11 +524,18 @@ const addToFavorite = (movie) => {
   transform: translateY(-5px);
 }
 
+.movie-link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+
 .movie-poster {
   position: relative;
   height: 250px;
   overflow: hidden;
   border-radius: 6px;
+  background-color: #e0e0e0; /* 添加默认背景色 */
 }
 
 .movie-poster img {
@@ -433,24 +549,58 @@ const addToFavorite = (movie) => {
   transform: scale(1.05);
 }
 
-.movie-overlay {
+/* 集数标签 */
+.episode-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background-color: rgba(0, 0, 0, 0.6);
+  color: white;
+  padding: 3px 8px;
+  border-radius: 2px;
+  font-size: 12px;
+  z-index: 1;
+}
+
+/* 新增：详情悬浮层样式 */
+.movie-detail-overlay {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.7);
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
+  justify-content: flex-end;
+  padding: 15px;
   opacity: 0;
   transition: opacity 0.3s ease;
+  color: white;
+  text-align: left;
 }
 
-.movie-card:hover .movie-overlay {
+.movie-card:hover .movie-detail-overlay {
   opacity: 1;
+}
+
+.detail-title {
+  font-size: 16px;
+  margin: 0 0 8px;
+  font-weight: bold;
+}
+
+.detail-meta,
+.detail-score,
+.detail-actors,
+.detail-desc {
+  font-size: 12px;
+  margin-bottom: 5px;
+  opacity: 0.9;
+}
+
+.detail-score {
+  color: #ff9900;
 }
 
 .movie-info {
@@ -458,28 +608,39 @@ const addToFavorite = (movie) => {
 }
 
 .movie-title {
-  margin: 0 0 5px;
-  font-size: 16px;
-  color: var(--text-color);
+  margin: 0;
+  font-size: 15px;
+  color: #333;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.movie-score {
-  display: flex;
-  align-items: center;
-  color: #ff9900;
-  margin: 0;
-}
-
-.movie-score span {
-  margin-left: 5px;
+  text-align: center;
 }
 
 .pagination-container {
   display: flex;
   justify-content: center;
   margin-top: 20px;
+  padding: 10px 0 20px;
+}
+
+@media (max-width: 768px) {
+  .movie-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  }
+  
+  .movie-poster {
+    height: 220px;
+  }
+  
+  .drama-type-tabs {
+    overflow-x: auto;
+    padding-bottom: 5px;
+  }
+  
+  .drama-tab {
+    padding: 6px 15px;
+    font-size: 13px;
+  }
 }
 </style> 
