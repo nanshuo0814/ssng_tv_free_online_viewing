@@ -3,6 +3,9 @@ import { saveCurrentNavigationState, getLastNavigationState } from '@/utils/meta
 import HomePage from '../views/HomePage.vue'
 import Play from '../views/Play.vue'
 import MovieNav from '../views/MovieNav.vue'
+import DramaNav from '../views/DramaNav.vue'
+import AnimeNav from '../views/AnimeNav.vue'
+import VarietyNav from '../views/VarietyNav.vue'
 
 const routes = [
   {
@@ -28,8 +31,7 @@ const routes = [
   {
     path: '/anime',
     name: 'Anime',
-    component: () => import('@/views/Category.vue'),
-    props: { type: 'anime' }
+    component: AnimeNav
   },
   {
     path: '/shorts',
@@ -40,8 +42,7 @@ const routes = [
   {
     path: '/variety',
     name: 'Variety',
-    component: () => import('@/views/Category.vue'),
-    props: { type: 'variety' }
+    component: VarietyNav
   },
   {
     path: '/movie/:id',
@@ -88,6 +89,11 @@ const routes = [
     name: 'videoDetail',
     component: () => import('@/views/ApiVideoDetail.vue'),
     props: true
+  },
+  {
+    path: '/dramas',
+    name: 'dramas',
+    component: DramaNav
   },
   {
     path: '/:pathMatch(.*)*',
