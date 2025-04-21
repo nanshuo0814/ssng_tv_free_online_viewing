@@ -20,7 +20,7 @@ const routes = [
   {
     path: '/tv',
     name: 'TV',
-    component: () => import('@/views/Category.vue'),
+    component: () => import('@/views/TV.vue'),
     props: { type: 'tv' }
   },
   {

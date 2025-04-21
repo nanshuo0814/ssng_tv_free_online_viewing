@@ -1,7 +1,7 @@
 <template>
-  <div class="category">
-    <div class="category-header">
-      <h2>{{ categoryTitle }}</h2>
+  <div class="tv">
+    <div class="tv-header">
+      <h2>电视剧</h2>
       
       <!-- 电视剧分类选项卡 -->
       <div v-if="currentType === 'tv'" class="drama-type-tabs">
@@ -39,7 +39,7 @@
 
     <!-- 加载状态 -->
     <div v-if="loading" class="loading-container">
-      <el-skeleton :rows="5" animated />
+      <el-skeleton :rows="5" animated :theme="isDarkTheme ? 'dark' : 'light'" />
     </div>
 
     <!-- 电影/剧集网格 -->
@@ -85,6 +85,8 @@
         :total="totalMovies"
         layout="total, prev, pager, next"
         @current-change="handlePageChange"
+        :background="true"
+        class="pagination-dark"
       />
     </div>
   </div>
@@ -94,9 +96,14 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useFavoriteStore } from '@/stores/favorite'
+import { useThemeStore } from '../stores/theme'
 import { ElMessage } from 'element-plus'
 import { Star, VideoPlay } from '@element-plus/icons-vue'
 import axios from 'axios'
+
+// 获取主题状态
+const themeStore = useThemeStore()
+const isDarkTheme = computed(() => themeStore.theme === 'dark')
 
 const props = defineProps({
   type: {
@@ -439,22 +446,23 @@ const truncateText = (text, maxLength) => {
 </script>
 
 <style scoped>
-.category {
+.tv {
   padding: 0 0 20px;
-  background-color: #f8f8f8;
+  background-color: var(--card-background);
   border-radius: 8px;
+  transition: background-color 0.3s ease;
 }
 
-.category-header {
+.tv-header {
   margin-bottom: 0px;
   padding: 15px 15px 5px;
 }
 
-.category-header h2 {
+.tv-header h2 {
   margin: 0 0 20px;
   font-size: 24px;
   font-weight: 600;
-  color: #333;
+  color: var(--text-color);
 }
 
 /* 电视剧分类选项卡 */
@@ -474,12 +482,12 @@ const truncateText = (text, maxLength) => {
   font-size: 14px;
   transition: all 0.3s;
   white-space: nowrap;
-  background-color: #f1f1f1;
-  color: #333;
+  background-color: var(--hover-background);
+  color: var(--text-color);
 }
 
 .drama-tab:hover {
-  background-color: #e0e0e0;
+  background-color: rgba(142, 68, 173, 0.1);
 }
 
 .drama-tab.active {
@@ -535,7 +543,7 @@ const truncateText = (text, maxLength) => {
   height: 250px;
   overflow: hidden;
   border-radius: 6px;
-  background-color: #e0e0e0; /* 添加默认背景色 */
+  background-color: var(--hover-background);
 }
 
 .movie-poster img {
@@ -610,7 +618,7 @@ const truncateText = (text, maxLength) => {
 .movie-title {
   margin: 0;
   font-size: 15px;
-  color: #333;
+  color: var(--text-color);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -622,6 +630,27 @@ const truncateText = (text, maxLength) => {
   justify-content: center;
   margin-top: 20px;
   padding: 10px 0 20px;
+}
+
+/* 分页暗黑模式样式 */
+:deep(.pagination-dark .el-pagination.is-background .el-pager li:not(.is-disabled)) {
+  background-color: var(--hover-background);
+  color: var(--text-color);
+}
+
+:deep(.pagination-dark .el-pagination.is-background .el-pager li:not(.is-disabled).is-active) {
+  background-color: #8e44ad; /* 紫色背景 */
+  color: white;
+}
+
+:deep(.pagination-dark .el-pagination.is-background .btn-prev),
+:deep(.pagination-dark .el-pagination.is-background .btn-next) {
+  background-color: var(--hover-background);
+  color: var(--text-color);
+}
+
+:deep(.pagination-dark .el-pagination .el-pagination__total) {
+  color: var(--text-color);
 }
 
 @media (max-width: 768px) {

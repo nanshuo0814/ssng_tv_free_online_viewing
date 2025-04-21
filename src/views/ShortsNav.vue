@@ -1,5 +1,7 @@
 <template>
   <div class="drama-nav">
+    <h2 style="margin-bottom: 0px;
+  padding: 15px 15px 5px;">短剧</h2>
     <!-- 短剧类型导航栏 -->
     <div class="drama-types">
       <div 
@@ -15,7 +17,7 @@
 
     <!-- 加载状态 -->
     <div v-if="loading" class="loading-container">
-      <el-skeleton :rows="5" animated />
+      <el-skeleton :rows="5" animated :theme="isDarkTheme ? 'dark' : 'light'" />
     </div>
 
     <!-- 短剧列表 -->
@@ -61,15 +63,22 @@
         :total="totalDramas"
         layout="total, prev, pager, next"
         @current-change="handlePageChange"
+        :background="true"
+        class="pagination-dark"
       />
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import axios from 'axios'
+import { useThemeStore } from '../stores/theme'
+
+// 获取主题状态
+const themeStore = useThemeStore()
+const isDarkTheme = computed(() => themeStore.theme === 'dark')
 
 // 短剧类型列表
 const dramaTypes = [
@@ -250,8 +259,9 @@ onMounted(() => {
 <style scoped>
 .drama-nav {
   padding: 0 0 20px;
-  background-color: #f8f8f8;
+  background-color: var(--card-background);
   border-radius: 8px;
+  transition: background-color 0.3s ease;
 }
 
 /* 短剧类型导航栏 */
@@ -270,13 +280,13 @@ onMounted(() => {
   cursor: pointer;
   font-size: 15px;
   transition: all 0.3s;
-  background-color: #f1f1f1;
-  color: #333;
+  background-color: var(--hover-background);
+  color: var(--text-color);
   white-space: nowrap;
 }
 
 .type-item:hover {
-  background-color: #e0e0e0;
+  background-color: rgba(156, 39, 176, 0.1);
 }
 
 .type-item.active {
@@ -320,7 +330,7 @@ onMounted(() => {
   height: 250px;
   overflow: hidden;
   border-radius: 6px;
-  background-color: #e0e0e0;
+  background-color: var(--hover-background);
 }
 
 .drama-poster img {
@@ -395,7 +405,7 @@ onMounted(() => {
 .drama-title {
   margin: 0;
   font-size: 15px;
-  color: #333;
+  color: var(--text-color);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -407,6 +417,27 @@ onMounted(() => {
   justify-content: center;
   margin-top: 20px;
   padding: 10px 0 20px;
+}
+
+/* 分页暗黑模式样式 */
+:deep(.pagination-dark .el-pagination.is-background .el-pager li:not(.is-disabled)) {
+  background-color: var(--hover-background);
+  color: var(--text-color);
+}
+
+:deep(.pagination-dark .el-pagination.is-background .el-pager li:not(.is-disabled).is-active) {
+  background-color: #9c27b0;
+  color: white;
+}
+
+:deep(.pagination-dark .el-pagination.is-background .btn-prev),
+:deep(.pagination-dark .el-pagination.is-background .btn-next) {
+  background-color: var(--hover-background);
+  color: var(--text-color);
+}
+
+:deep(.pagination-dark .el-pagination .el-pagination__total) {
+  color: var(--text-color);
 }
 
 @media (max-width: 768px) {
