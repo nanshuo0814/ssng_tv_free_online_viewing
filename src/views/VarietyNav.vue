@@ -73,12 +73,13 @@ import axios from 'axios'
 
 // 综艺类型列表
 const varietyTypes = [
-  { id: 30, name: '国产综艺' },
-  { id: 31, name: '港台综艺' },
-  { id: 32, name: '日韩综艺' },
-  { id: 33, name: '欧美综艺' },
-  { id: 34, name: '新马泰综艺' },
-  { id: 35, name: '其它综艺' }
+  { id: 38, name: '国产综艺' },
+  { id: 39, name: '港台综艺' },
+  { id: 40, name: '韩国综艺' },
+  { id: 41, name: '日本综艺' },
+  { id: 42, name: '欧美综艺' },
+  { id: 43, name: '新马泰综艺' },
+  { id: 44, name: '其它综艺' }
 ]
 
 // 状态变量
@@ -87,7 +88,7 @@ const varieties = ref([])
 const currentPage = ref(1)
 const pageSize = ref(24)
 const totalVarieties = ref(0)
-const currentType = ref(30) // 默认国产综艺
+const currentType = ref(38) // 默认国产综艺
 
 // 加载综艺数据
 const fetchVarieties = async () => {
@@ -134,12 +135,13 @@ const loadFallbackData = (typeId) => {
   
   // 根据类型加载不同的备用数据
   const typeMap = {
-    30: '国产综艺',
-    31: '港台综艺',
-    32: '日韩综艺',
-    33: '欧美综艺',
-    34: '新马泰综艺',
-    35: '其它综艺'
+    38: '国产综艺',
+    39: '港台综艺',
+    40: '韩国综艺',
+    41: '日本综艺',
+    42: '欧美综艺',
+    43: '新马泰综艺',
+    44: '其它综艺'
   }
   
   const typeName = typeMap[typeId] || '综艺'
