@@ -3,7 +3,7 @@ import { saveCurrentNavigationState, getLastNavigationState } from '@/utils/meta
 import HomePage from '../views/HomePage.vue'
 import Play from '../views/Play.vue'
 import MovieNav from '../views/MovieNav.vue'
-import DramaNav from '../views/DramaNav.vue'
+import DramaNav from '../views/ShortsNav.vue'
 import AnimeNav from '../views/AnimeNav.vue'
 import VarietyNav from '../views/VarietyNav.vue'
 
@@ -36,7 +36,7 @@ const routes = [
   {
     path: '/shorts',
     name: 'Shorts',
-    component: () => import('@/views/Category.vue'),
+    component: () => import('@/views/ShortsNav.vue'),
     props: { type: 'shorts' }
   },
   {
