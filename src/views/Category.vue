@@ -71,11 +71,18 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, defineProps } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useFavoriteStore } from '@/stores/favorite'
 import { ElMessage } from 'element-plus'
 import { Star, VideoPlay } from '@element-plus/icons-vue'
+
+const props = defineProps({
+  type: {
+    type: String,
+    default: ''
+  }
+})
 
 const route = useRoute()
 const router = useRouter()
@@ -88,20 +95,24 @@ const filterYear = ref('all')
 const currentPage = ref(1)
 const pageSize = ref(24)
 
+// 获取当前分类类型，优先使用props中的type，如果没有则使用路由参数
+const currentType = computed(() => props.type || route.params.type)
+
 // 计算分类标题
 const categoryTitle = computed(() => {
   const typeMap = {
     movie: '电影',
     tv: '电视剧',
     anime: '动漫',
-    variety: '综艺'
+    variety: '综艺',
+    shorts: '短剧'
   }
-  return typeMap[route.params.type] || '未知分类'
+  return typeMap[currentType.value] || '未知分类'
 })
 
 // 模拟电影数据（实际项目应该从API获取）
 const allMovies = computed(() => {
-  const type = route.params.type
+  const type = currentType.value
   
   if (type === 'movie') {
     return [
@@ -282,6 +293,19 @@ const allMovies = computed(() => {
   return []
 })
 
+// 重置分页和筛选条件
+const resetFilters = () => {
+  currentPage.value = 1
+  filterOrder.value = 'popular'
+  filterRegion.value = 'all'
+  filterYear.value = 'all'
+}
+
+// 监听类型变化，重置相关状态
+watch(currentType, () => {
+  resetFilters()
+}, { immediate: true })
+
 // 筛选电影
 const filteredMovies = computed(() => {
   let result = [...allMovies.value]
@@ -328,11 +352,6 @@ const handlePageChange = (page) => {
   currentPage.value = page
   window.scrollTo(0, 0)
 }
-
-// 监听路由参数变化
-watch(() => route.params.type, () => {
-  currentPage.value = 1
-})
 
 const playMovie = (movie) => {
   router.push(`/play/${movie.type}/${movie.id}`)

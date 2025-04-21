@@ -1,10 +1,45 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHashHistory } from 'vue-router'
+import { saveCurrentNavigationState, getLastNavigationState } from '@/utils/meta'
 
 const routes = [
   {
     path: '/',
+    redirect: '/home'
+  },
+  {
+    path: '/home',
     name: 'Home',
     component: () => import('@/views/HomePage.vue')
+  },
+  {
+    path: '/tv',
+    name: 'TV',
+    component: () => import('@/views/Category.vue'),
+    props: { type: 'tv' }
+  },
+  {
+    path: '/movies',
+    name: 'Movies',
+    component: () => import('@/views/Category.vue'),
+    props: { type: 'movie' }
+  },
+  {
+    path: '/anime',
+    name: 'Anime',
+    component: () => import('@/views/Category.vue'),
+    props: { type: 'anime' }
+  },
+  {
+    path: '/shorts',
+    name: 'Shorts',
+    component: () => import('@/views/Category.vue'),
+    props: { type: 'shorts' }
+  },
+  {
+    path: '/variety',
+    name: 'Variety',
+    component: () => import('@/views/Category.vue'),
+    props: { type: 'variety' }
   },
   {
     path: '/movie/:id',
@@ -53,7 +88,7 @@ const routes = [
 ]
 
 const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHashHistory(),
   routes,
   scrollBehavior(to, from, savedPosition) {
     if (savedPosition) {
@@ -62,6 +97,44 @@ const router = createRouter({
       return { top: 0 }
     }
   }
+})
+
+// 导航守卫，保存当前路径
+router.afterEach((to) => {
+  // 每次导航完成后保存路径（包括首页）
+  saveCurrentNavigationState(to.path);
+})
+
+// 导航守卫，在初始化时检查是否有保存的路径
+let isFirstNavigation = true;
+router.beforeEach((to, from, next) => {
+  // 检查是否为首次加载且是重定向到首页的情况
+  if (isFirstNavigation && to.path === '/' && to.redirectedFrom === undefined) {
+    // 正常重定向到首页
+    isFirstNavigation = false;
+    next();
+    return;
+  }
+  
+  // 如果用户明确访问的是首页(已保存的路径也是首页)，或者明确刷新了首页，则不跳转
+  const lastPath = getLastNavigationState();
+  if (to.path === '/home' || lastPath === '/home') {
+    isFirstNavigation = false;
+    next();
+    return;
+  }
+  
+  // 其他情况，如果有保存的路径且不是首页，则跳转
+  if (isFirstNavigation && (to.path === '/' || to.path === '/home')) {
+    if (lastPath && lastPath !== '/' && lastPath !== '/home') {
+      isFirstNavigation = false;
+      next({ path: lastPath, replace: true });
+      return;
+    }
+  }
+  
+  isFirstNavigation = false;
+  next();
 })
 
 export default router 

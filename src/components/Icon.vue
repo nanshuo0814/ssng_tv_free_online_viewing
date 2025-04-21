@@ -39,6 +39,9 @@ const iconName = computed(() => {
     'dark': 'Moon',
     'Fold': 'Fold',
     'Expand': 'Expand',
+    'Star': 'Star', // 收藏图标
+    'Collection': 'Collection', // 备用收藏图标
+    'Favorite': 'StarFilled', // 备用收藏图标（填充版）
     // 添加天气图标
     'Sunny': 'Sunny',
     'Cloudy': 'Cloudy',

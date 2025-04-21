@@ -28,10 +28,6 @@
       </div>
       
       <div class="navbar-actions">
-        <router-link to="/history" class="nav-action" :class="{ 'active': isActive('/history') }" title="观看历史">
-          <Icon name="history" :color="isActive('/history') ? '#2196f3' : '#909399'" />
-        </router-link>
-        
         <div class="nav-action theme-toggle" @click="toggleTheme" title="切换主题">
           <Icon v-if="!isDarkTheme" name="dark" color="#3f51b5" />
           <Icon v-else name="light" color="#ff9800" />

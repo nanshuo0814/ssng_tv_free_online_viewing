@@ -2,41 +2,53 @@
   <div class="sidebar-overlay" v-if="!isCollapsed && isMobile" @click="closeSidebar"></div>
   <aside class="sidebar" :class="{ 'collapsed': isCollapsed, 'mobile': isMobile, 'mobile-visible': !isCollapsed && isMobile }">
     <div class="sidebar-header" v-if="!isCollapsed || !isMobile">
-      <router-link to="/" class="sidebar-logo">
+      <router-link to="/home" class="sidebar-logo">
         <img src="../assets/ssng.png" alt="Logo" class="logo-img" />
         <span class="logo-text">烁烁南光在线免费影视</span>
       </router-link>
     </div>
 
     <nav class="sidebar-nav">
-      <router-link to="/" class="nav-item" :class="{ 'active': isActive('/') }">
-        <Icon name="home" :color="isActive('/') ? '#4caf50' : '#909399'" />
-        <span>首页</span>
-      </router-link>
-      <router-link to="/tv" class="nav-item" :class="{ 'active': isActive('/tv') }">
-        <Icon name="tv" :color="isActive('/tv') ? '#2196f3' : '#909399'" />
-        <span>电视剧</span>
-      </router-link>
-      <router-link to="/movies" class="nav-item" :class="{ 'active': isActive('/movies') }">
-        <Icon name="movie" :color="isActive('/movies') ? '#e91e63' : '#909399'" />
-        <span>电影</span>
-      </router-link>
-      <router-link to="/anime" class="nav-item" :class="{ 'active': isActive('/anime') }">
-        <Icon name="anime" :color="isActive('/anime') ? '#9c27b0' : '#909399'" />
-        <span>动漫</span>
-      </router-link>
-      <router-link to="/shorts" class="nav-item" :class="{ 'active': isActive('/shorts') }">
-        <Icon name="shorts" :color="isActive('/shorts') ? '#ff9800' : '#909399'" />
-        <span>短剧</span>
-      </router-link>
-      <router-link to="/variety" class="nav-item" :class="{ 'active': isActive('/variety') }">
-        <Icon name="variety" :color="isActive('/variety') ? '#673ab7' : '#909399'" />
-        <span>综艺</span>
-      </router-link>
-      <router-link to="/history" class="nav-item mobile-only" :class="{ 'active': isActive('/history') }">
-        <Icon name="history" :color="isActive('/history') ? '#2196f3' : '#909399'" />
-        <span>历史记录</span>
-      </router-link>
+      <!-- 内容分类 -->
+      <div class="nav-section">
+        <router-link to="/home" class="nav-item" :class="{ 'active': isActive('/home') }">
+          <Icon name="home" :color="isActive('/home') ? '#4caf50' : '#909399'" />
+          <span>首页</span>
+        </router-link>
+        <router-link to="/tv" class="nav-item" :class="{ 'active': isActive('/tv') }">
+          <Icon name="tv" :color="isActive('/tv') ? '#2196f3' : '#909399'" />
+          <span>电视剧</span>
+        </router-link>
+        <router-link to="/movies" class="nav-item" :class="{ 'active': isActive('/movies') }">
+          <Icon name="movie" :color="isActive('/movies') ? '#e91e63' : '#909399'" />
+          <span>电影</span>
+        </router-link>
+        <router-link to="/anime" class="nav-item" :class="{ 'active': isActive('/anime') }">
+          <Icon name="anime" :color="isActive('/anime') ? '#9c27b0' : '#909399'" />
+          <span>动漫</span>
+        </router-link>
+        <router-link to="/shorts" class="nav-item" :class="{ 'active': isActive('/shorts') }">
+          <Icon name="shorts" :color="isActive('/shorts') ? '#ff9800' : '#909399'" />
+          <span>短剧</span>
+        </router-link>
+        <router-link to="/variety" class="nav-item" :class="{ 'active': isActive('/variety') }">
+          <Icon name="variety" :color="isActive('/variety') ? '#673ab7' : '#909399'" />
+          <span>综艺</span>
+        </router-link>
+      </div>
+      
+      <!-- 个人中心 -->
+      <div class="nav-section personal-section">
+        <div class="section-title" v-if="!isCollapsed">个人中心</div>
+        <router-link to="/favorites" class="nav-item" :class="{ 'active': isActive('/favorites') }">
+          <Icon name="Favorite" :color="isActive('/favorites') ? '#ff9800' : '#909399'" />
+          <span>我的收藏</span>
+        </router-link>
+        <router-link to="/history" class="nav-item" :class="{ 'active': isActive('/history') }">
+          <Icon name="history" :color="isActive('/history') ? '#2196f3' : '#909399'" />
+          <span>历史记录</span>
+        </router-link>
+      </div>
     </nav>
 
     <div class="sidebar-footer" :class="{ 'collapsed': isCollapsed }">
@@ -79,8 +91,8 @@ function closeSidebar() {
 }
 
 function isActive(path) {
-  if (path === '/') {
-    return route.path === '/'
+  if (path === '/home') {
+    return route.path === '/home'
   }
   return route.path.includes(path)
 }
@@ -114,11 +126,6 @@ onBeforeMount(() => {
 onMounted(() => {
   // 初始化侧边栏状态
   sidebarStore.initSidebar()
-  
-  // 如果当前路径为根路径，初始化时自动导航到首页
-  if (route.path === '/') {
-    router.push('/')
-  }
 })
 </script>
 
@@ -201,6 +208,24 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+}
+
+.nav-section {
+  margin-bottom: 16px;
+}
+
+.personal-section {
+  margin-top: 20px;
+  border-top: 1px solid var(--border-color);
+  padding-top: 16px;
+}
+
+.section-title {
+  padding: 0 24px 8px 24px;
+  font-size: 12px;
+  color: var(--text-color-light);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .nav-item {
@@ -287,15 +312,11 @@ onMounted(() => {
   margin-right: 0;
 }
 
-.mobile-only {
+.sidebar.collapsed .section-title {
   display: none;
 }
 
 @media (max-width: 992px) {
-  .mobile-only {
-    display: flex;
-  }
-  
   /* 在手机端完全隐藏侧边栏底部 */
   .sidebar-footer {
     display: none;

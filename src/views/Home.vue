@@ -1,18 +1,14 @@
 <template>
   <div class="home-page">
-    <!-- 轮播图 -->
+    <!-- 单张图片（替换原轮播图） -->
     <div class="banner-section">
-      <el-carousel :interval="5000" arrow="hover" height="400px">
-        <el-carousel-item v-for="item in bannerList" :key="item.id">
-          <div class="banner-item" @click="navigateToPlay(item.id)">
-            <img :src="item.cover" alt="banner" />
-            <div class="banner-info">
-              <div class="banner-title">{{ item.title }}</div>
-              <div class="banner-desc">{{ item.description }}</div>
-            </div>
-          </div>
-        </el-carousel-item>
-      </el-carousel>
+      <div class="banner-item" @click="navigateToPlay(bannerList[0].id)">
+        <img :src="bannerList[0].cover" alt="banner" />
+        <div class="banner-info">
+          <div class="banner-title">{{ bannerList[0].title }}</div>
+          <div class="banner-desc">{{ bannerList[0].description }}</div>
+        </div>
+      </div>
     </div>
 
     <!-- 推荐内容 -->
@@ -190,6 +186,7 @@ onMounted(() => {
 
 .banner-section {
   margin-bottom: 30px;
+  height: 400px;
 }
 
 .banner-item {
