@@ -6,7 +6,7 @@
           <img src="../assets/ssng.png" alt="Logo" class="logo-img" />
         </router-link>
         <div class="toggle-icon" @click="toggleSidebar" title="展开/收起侧边栏">
-          <Icon :name="isCollapsed ? 'Expand' : 'Fold'" color="#606266" />
+          <Icon :name="isCollapsed ? 'Expand' : 'Fold'" color="var(--text-color)" />
         </div>
         
         <!-- PC端时间显示放在左边 -->
@@ -17,7 +17,7 @@
       </div>
       
       <div class="search-box">
-        <Icon name="search" color="#909399" class="search-icon" />
+        <Icon name="search" color="var(--text-color-light)" class="search-icon" />
         <input
           v-model="searchQuery"
           @keyup.enter="handleSearch"
@@ -28,9 +28,17 @@
       </div>
       
       <div class="navbar-actions">
+        <!-- 添加全屏图标 -->
+        <div class="nav-action" @click="toggleFullScreen" title="全屏/退出全屏">
+          <Icon :name="isFullScreen ? 'ExitFullScreen' : 'FullScreen'" :color="isFullScreen ? 'var(--theme-color)' : 'var(--text-color)'" />
+        </div>
+        
+        <!-- 添加主题色选择器 -->
+        <ThemeColorPicker class="nav-action" />
+        
         <div class="nav-action theme-toggle" @click="toggleTheme" title="切换主题">
-          <Icon v-if="!isDarkTheme" name="dark" color="#3f51b5" />
-          <Icon v-else name="light" color="#ff9800" />
+          <Icon v-if="!isDarkTheme" name="dark" :color="'var(--theme-color)'" />
+          <Icon v-else name="light" :color="'var(--theme-color)'" />
         </div>
       </div>
     </div>
@@ -38,13 +46,14 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeMount } from 'vue'
+import { ref, computed, onMounted, onBeforeMount, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useThemeStore } from '../stores/theme'
 import { useSidebarStore } from '../stores/sidebar'
 import Icon from './Icon.vue'
 import WeatherDisplay from './WeatherDisplay.vue'
 import TimeDisplay from './TimeDisplay.vue'
+import ThemeColorPicker from './ThemeColorPicker.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -55,6 +64,7 @@ const searchQuery = ref('')
 const isDarkTheme = computed(() => themeStore.theme === 'dark')
 const isCollapsed = computed(() => sidebarStore.isCollapsed)
 const isMobile = ref(false)
+const isFullScreen = ref(false)
 
 // 只在移动模式且侧边栏折叠时显示logo
 const isMobileAndCollapsed = computed(() => {
@@ -87,6 +97,30 @@ function isActive(path) {
   return route.path.includes(path)
 }
 
+// 切换全屏状态
+function toggleFullScreen() {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen().then(() => {
+      isFullScreen.value = true
+    }).catch(err => {
+      console.error(`全屏请求出错: ${err.message}`)
+    })
+  } else {
+    if (document.exitFullscreen) {
+      document.exitFullscreen().then(() => {
+        isFullScreen.value = false
+      }).catch(err => {
+        console.error(`退出全屏出错: ${err.message}`)
+      })
+    }
+  }
+}
+
+// 监听全屏变化
+function handleFullScreenChange() {
+  isFullScreen.value = !!document.fullscreenElement
+}
+
 onBeforeMount(() => {
   checkMobile()
   window.addEventListener('resize', checkMobile)
@@ -94,6 +128,13 @@ onBeforeMount(() => {
 
 onMounted(() => {
   checkMobile()
+  // 添加全屏变化监听器
+  document.addEventListener('fullscreenchange', handleFullScreenChange)
+})
+
+onUnmounted(() => {
+  // 清理全屏变化监听器
+  document.removeEventListener('fullscreenchange', handleFullScreenChange)
 })
 </script>
 
@@ -214,11 +255,11 @@ onMounted(() => {
 
 .nav-action:hover {
   background-color: var(--hover-background);
-  color: var(--primary-color);
+  color: var(--theme-color);
 }
 
 .nav-action.active {
-  color: var(--primary-color);
+  color: var(--theme-color);
   background-color: var(--hover-background);
 }
 

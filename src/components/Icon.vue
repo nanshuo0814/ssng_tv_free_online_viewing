@@ -25,14 +25,14 @@ const props = defineProps({
 
 const iconName = computed(() => {
   // 转换图标名称为Element Plus的图标组件名
-  // 例如: 'home' => 'HomeFilled'
+  // 例如: 'home' => 'House'
   const iconMap = {
-    'home': 'HomeFilled',
+    'home': 'House',
     'tv': 'Monitor',
     'movie': 'Film',
-    'anime': 'Star',
-    'shorts': 'Iphone',
-    'variety': 'VideoPlay',
+    'anime': 'MagicStick',
+    'shorts': 'Cellphone',
+    'variety': 'TrophyBase',
     'history': 'Clock',
     'search': 'Search',
     'light': 'Sunny',
@@ -41,7 +41,11 @@ const iconName = computed(() => {
     'Expand': 'Expand',
     'Star': 'Star', // 收藏图标
     'Collection': 'Collection', // 备用收藏图标
-    'Favorite': 'StarFilled', // 备用收藏图标（填充版）
+    'Favorite': 'Star', // 改为不填充版本
+    'FullScreen': 'FullScreen', // 全屏图标
+    'ExitFullScreen': 'Close', // 退出全屏图标
+    'ArrowDown': 'ArrowDown', // 下拉箭头
+    'Palette': 'Brush', // 调色板图标
     // 添加天气图标
     'Sunny': 'Sunny',
     'Cloudy': 'Cloudy',

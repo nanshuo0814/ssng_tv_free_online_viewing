@@ -12,27 +12,27 @@
       <!-- 内容分类 -->
       <div class="nav-section">
         <router-link to="/home" class="nav-item" :class="{ 'active': isActive('/home') }">
-          <Icon name="home" :color="isActive('/home') ? '#4caf50' : '#909399'" />
+          <Icon name="home" :color="isActive('/home') ? 'var(--theme-color)' : '#909399'" />
           <span>首页</span>
         </router-link>
         <router-link to="/tv" class="nav-item" :class="{ 'active': isActive('/tv') }">
-          <Icon name="tv" :color="isActive('/tv') ? '#2196f3' : '#909399'" />
+          <Icon name="tv" :color="isActive('/tv') ? 'var(--theme-color)' : '#909399'" />
           <span>电视剧</span>
         </router-link>
         <router-link to="/movies" class="nav-item" :class="{ 'active': isActive('/movies') }">
-          <Icon name="movie" :color="isActive('/movies') ? '#e91e63' : '#909399'" />
+          <Icon name="movie" :color="isActive('/movies') ? 'var(--theme-color)' : '#909399'" />
           <span>电影</span>
         </router-link>
         <router-link to="/anime" class="nav-item" :class="{ 'active': isActive('/anime') }">
-          <Icon name="anime" :color="isActive('/anime') ? '#9c27b0' : '#909399'" />
+          <Icon name="anime" :color="isActive('/anime') ? 'var(--theme-color)' : '#909399'" />
           <span>动漫</span>
         </router-link>
         <router-link to="/shorts" class="nav-item" :class="{ 'active': isActive('/shorts') }">
-          <Icon name="shorts" :color="isActive('/shorts') ? '#ff9800' : '#909399'" />
+          <Icon name="shorts" :color="isActive('/shorts') ? 'var(--theme-color)' : '#909399'" />
           <span>短剧</span>
         </router-link>
         <router-link to="/variety" class="nav-item" :class="{ 'active': isActive('/variety') }">
-          <Icon name="variety" :color="isActive('/variety') ? '#673ab7' : '#909399'" />
+          <Icon name="variety" :color="isActive('/variety') ? 'var(--theme-color)' : '#909399'" />
           <span>综艺</span>
         </router-link>
       </div>
@@ -41,11 +41,11 @@
       <div class="nav-section personal-section">
         <div class="section-title" v-if="!isCollapsed">个人中心</div>
         <router-link to="/favorites" class="nav-item" :class="{ 'active': isActive('/favorites') }">
-          <Icon name="Favorite" :color="isActive('/favorites') ? '#ff9800' : '#909399'" />
+          <Icon name="Favorite" :color="isActive('/favorites') ? 'var(--theme-color)' : '#909399'" />
           <span>我的收藏</span>
         </router-link>
         <router-link to="/history" class="nav-item" :class="{ 'active': isActive('/history') }">
-          <Icon name="history" :color="isActive('/history') ? '#2196f3' : '#909399'" />
+          <Icon name="history" :color="isActive('/history') ? 'var(--theme-color)' : '#909399'" />
           <span>历史记录</span>
         </router-link>
       </div>
@@ -55,7 +55,7 @@
       <FpsCounter />
       <div class="footer-actions">
         <div class="collapse-toggle" @click="toggleSidebar" title="收起/展开">
-          <Icon :name="isCollapsed ? 'Expand' : 'Fold'" color="#606266" />
+          <Icon :name="isCollapsed ? 'Expand' : 'Fold'" color="var(--theme-color)" />
         </div>
       </div>
     </div>

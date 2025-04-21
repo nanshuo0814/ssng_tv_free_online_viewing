@@ -43,6 +43,7 @@ onMounted(() => {
 
 <style>
 @import './assets/styles/variables.css';
+@import './assets/styles/theme-colors.css';
 
 * {
   margin: 0;
