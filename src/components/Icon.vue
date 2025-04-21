@@ -38,7 +38,13 @@ const iconName = computed(() => {
     'light': 'Sunny',
     'dark': 'Moon',
     'Fold': 'Fold',
-    'Expand': 'Expand'
+    'Expand': 'Expand',
+    // 添加天气图标
+    'Sunny': 'Sunny',
+    'Cloudy': 'Cloudy',
+    'Partly': 'PartlyCloudy',
+    'Rainy': 'Lightning',
+    'Snowy': 'Cherry'
   }
   
   const name = iconMap[props.name] || props.name

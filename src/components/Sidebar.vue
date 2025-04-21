@@ -183,7 +183,7 @@ onMounted(() => {
   font-size: 18px;
   font-weight: 700;
   color: var(--primary-color);
-  margin-left: 8px;
+  margin-left: 5px;
   white-space: nowrap;
   overflow: hidden;
   transition: opacity 0.3s ease;

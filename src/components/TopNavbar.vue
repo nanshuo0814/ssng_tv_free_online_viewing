@@ -8,6 +8,12 @@
         <div class="toggle-icon" @click="toggleSidebar" title="展开/收起侧边栏">
           <Icon :name="isCollapsed ? 'Expand' : 'Fold'" color="#606266" />
         </div>
+        
+        <!-- PC端时间显示放在左边 -->
+        <TimeDisplay class="pc-only" />
+        
+        <!-- PC端天气显示放在时间右边 -->
+        <WeatherDisplay class="pc-only" />
       </div>
       
       <div class="search-box">
@@ -41,6 +47,8 @@ import { useRouter, useRoute } from 'vue-router'
 import { useThemeStore } from '../stores/theme'
 import { useSidebarStore } from '../stores/sidebar'
 import Icon from './Icon.vue'
+import WeatherDisplay from './WeatherDisplay.vue'
+import TimeDisplay from './TimeDisplay.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -116,13 +124,16 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   height: 100%;
-  padding: 0 20px;
+  padding: 0 8px; /* 添加少量水平内边距 */
+  gap: 5px; /* 组件之间添加少量间距 */
 }
 
 .left-section {
   display: flex;
   align-items: center;
-  min-width: 40px;
+  padding-left: 13px;
+  margin: 0;
+  gap: 5px; /* 添加左侧组件间的间距 */
 }
 
 .navbar-logo {
@@ -140,17 +151,24 @@ onMounted(() => {
   padding: 8px;
   border-radius: 4px;
   transition: background-color 0.2s;
-  margin-right: 16px;
+  margin-right: 0;
 }
 
 .toggle-icon:hover {
   background-color: var(--hover-background);
 }
 
+.pc-only {
+  display: flex; /* PC端显示 */
+  margin: 0;
+  padding: 0;
+}
+
 .search-box {
   position: relative;
-  flex: 0 1 550px;
-  margin-left: 10px;
+  flex: 1 1 auto; /* 让搜索框自动填充可用空间 */
+  margin: 0 5px; /* 两侧添加少量间距 */
+  max-width: 550px; /* 设置最大宽度，防止过宽 */
 }
 
 .search-input {
@@ -180,7 +198,9 @@ onMounted(() => {
 .navbar-actions {
   display: flex;
   align-items: center;
-  gap: 0px; /* 移除PC端历史记录和暗黑模式图标间的间距 */
+  gap: 0px;
+  margin: 0;
+  padding: 0;
 }
 
 .nav-action {
@@ -193,6 +213,7 @@ onMounted(() => {
   padding: 8px;
   border-radius: 4px;
   transition: background-color 0.2s;
+  margin: 0;
 }
 
 .nav-action:hover {
@@ -209,6 +230,12 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+@media (max-width: 1200px) {
+  .search-box {
+    max-width: 400px; /* 较窄屏幕上减小搜索框最大宽度 */
+  }
 }
 
 @media (max-width: 992px) {
@@ -242,9 +269,14 @@ onMounted(() => {
     left: 0;
   }
   
+  .pc-only {
+    display: none; /* 移动端隐藏 */
+  }
+  
   .search-box {
     margin-left: 0;
     flex: 1;
+    max-width: none; /* 移动端取消最大宽度限制 */
   }
   
   .navbar-actions {
