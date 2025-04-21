@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // 默认资源站URL
-const DEFAULT_API_URL = 'https://heimuer.tv';
+const DEFAULT_API_URL = 'api';
 
 // 用于存储当前选中的资源站
 let currentApiUrl = DEFAULT_API_URL;
@@ -84,7 +84,14 @@ export async function getVideoList(page = 1, pageSize = 20, typeId = 0, keyword 
  */
 export async function getVideoDetail(id) {
   try {
-    const response = await axios.get(createApiUrl('detail', { ids: id }));
+    // 使用API获取数据
+    const response = await axios.get(`/api/api.php/provide/vod/`, {
+      params: {
+        ac: 'detail',
+        ids: id
+      }
+    })
+    // const response = await axios.get(('detail', { ids: id }));
     return response.data;
   } catch (error) {
     console.error('获取视频详情失败', error);

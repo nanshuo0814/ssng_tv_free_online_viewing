@@ -52,6 +52,12 @@ const router = useRouter()
 const defaultPoster = ref('/src/assets/default-poster.jpg')
 
 const navigateToDetail = () => {
+  // 对于API视频源的电影，使用新的路由
+  if (props.movie.isApiSource) {
+    router.push(`/video/detail/${props.movie.id}`)
+    return
+  }
+  
   const mediaType = props.movie.media_type || (props.movie.first_air_date ? 'tv' : 'movie')
   router.push(`/${mediaType}/${props.movie.id}`)
 }

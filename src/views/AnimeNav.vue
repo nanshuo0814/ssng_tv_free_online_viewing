@@ -23,7 +23,7 @@
     <!-- 动漫列表 -->
     <div v-else class="anime-grid">
       <div v-for="anime in animes" :key="anime.vod_id" class="anime-card">
-        <router-link :to="`/play/anime/${anime.vod_id}`" class="anime-link">
+        <router-link :to="`/video/detail/${anime.vod_id}`" class="anime-link">
           <div class="anime-poster">
             <img 
               :src="getImageUrl(anime.vod_pic)" 

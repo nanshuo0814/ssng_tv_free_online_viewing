@@ -1,7 +1,7 @@
 <template>
   <div class="tv">
     <div class="tv-header">
-      <h2>电视剧</h2>
+      <h2 style="">电视剧</h2>
       
       <!-- 电视剧分类选项卡 -->
       <div v-if="currentType === 'tv'" class="drama-type-tabs">
@@ -45,7 +45,7 @@
     <!-- 电影/剧集网格 -->
     <div v-else class="movie-grid">
       <div v-for="movie in displayMovies" :key="movie.vod_id" class="movie-card">
-        <router-link :to="`/play/${currentType.value}/${movie.vod_id}`" class="movie-link">
+        <router-link :to="`/video/detail/${movie.vod_id}`" class="movie-link">
         <div class="movie-poster">
             <img 
               :src="getImageUrl(movie.vod_pic)" 

@@ -171,8 +171,15 @@ const getMediaTypeLabel = (type) => {
 
 // 跳转到详情页
 const navigateToDetail = (item) => {
-  const mediaType = item.media_type
-  router.push(`/${mediaType}/${item.id}`)
+  // 检查是否为API来源的视频
+  if (item.isApiSource || item.vod_id) {
+    // 使用新的详情页路由
+    router.push(`/video/detail/${item.vod_id || item.id}`)
+  } else {
+    // 继续使用旧的TMDB路由格式
+    const mediaType = item.media_type
+    router.push(`/${mediaType}/${item.id}`)
+  }
 }
 
 // 播放媒体

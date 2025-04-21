@@ -1,9 +1,7 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import { saveCurrentNavigationState, getLastNavigationState } from '@/utils/meta'
 import HomePage from '../views/HomePage.vue'
-import Play from '../views/Play.vue'
 import MovieNav from '../views/MovieNav.vue'
-import DramaNav from '../views/ShortsNav.vue'
 import AnimeNav from '../views/AnimeNav.vue'
 import VarietyNav from '../views/VarietyNav.vue'
 
@@ -45,18 +43,6 @@ const routes = [
     component: VarietyNav
   },
   {
-    path: '/movie/:id',
-    name: 'MovieDetail',
-    component: () => import('@/views/MovieDetail.vue'),
-    props: true
-  },
-  {
-    path: '/tv/:id',
-    name: 'TVDetail',
-    component: () => import('@/views/MovieDetail.vue'),
-    props: true
-  },
-  {
     path: '/search',
     name: 'Search',
     component: () => import('@/views/Search.vue')
@@ -71,29 +57,12 @@ const routes = [
     name: 'History',
     component: () => import('@/views/History.vue')
   },
+  // 新增的影片详情路由
   {
-    path: '/:mediaType/:id/play',
-    name: 'Play',
-    component: Play,
-    props: true
-  },
-  {
-    path: '/category/:type',
-    name: 'Category',
-    component: () => import('@/views/Category.vue'),
-    props: true
-  },
-  // 资源站视频详情路由（保留但不在导航中显示）
-  {
-    path: '/video/:id',
-    name: 'videoDetail',
+    path: '/video/detail/:id',
+    name: 'videoDetailNew',
     component: () => import('@/views/ApiVideoDetail.vue'),
     props: true
-  },
-  {
-    path: '/dramas',
-    name: 'dramas',
-    component: DramaNav
   },
   {
     path: '/:pathMatch(.*)*',

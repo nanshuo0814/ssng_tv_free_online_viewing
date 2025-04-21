@@ -49,7 +49,7 @@
         :lg="4" 
         :xl="3"
       >
-        <router-link :to="{ name: 'videoDetail', params: { id: video.vod_id } }" class="video-card-link">
+        <router-link :to="{ name: 'videoDetailNew', params: { id: video.vod_id } }" class="video-card-link">
           <el-card shadow="hover" class="video-card">
             <div class="video-poster">
               <img 

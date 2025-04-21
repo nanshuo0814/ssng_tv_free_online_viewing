@@ -23,7 +23,7 @@
     <!-- 短剧列表 -->
     <div v-else class="drama-grid">
       <div v-for="drama in dramas" :key="drama.vod_id" class="drama-card">
-        <router-link :to="`/play/drama/${drama.vod_id}`" class="drama-link">
+        <router-link :to="`/video/detail/${drama.vod_id}`" class="drama-link">
           <div class="drama-poster">
             <img 
               :src="getImageUrl(drama.vod_pic)" 

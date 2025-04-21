@@ -23,7 +23,7 @@
     <!-- 综艺列表 -->
     <div v-else class="variety-grid">
       <div v-for="variety in varieties" :key="variety.vod_id" class="variety-card">
-        <router-link :to="`/play/variety/${variety.vod_id}`" class="variety-link">
+        <router-link :to="`/video/detail/${variety.vod_id}`" class="variety-link">
           <div class="variety-poster">
             <img 
               :src="getImageUrl(variety.vod_pic)" 

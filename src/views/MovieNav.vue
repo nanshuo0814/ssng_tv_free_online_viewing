@@ -23,7 +23,7 @@
     <!-- 电影列表 -->
     <div v-else class="movie-grid">
       <div v-for="movie in movies" :key="movie.vod_id" class="movie-card">
-        <router-link :to="`/play/movie/${movie.vod_id}`" class="movie-link">
+        <router-link :to="`/video/detail/${movie.vod_id}`" class="movie-link">
           <div class="movie-poster">
             <img 
               :src="getImageUrl(movie.vod_pic)" 
