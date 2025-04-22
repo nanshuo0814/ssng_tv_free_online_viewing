@@ -1,5 +1,28 @@
 <template>
   <div class="video-play-page">
+    <div class="copyright-notice">
+      <el-alert
+        title="温馨提示"
+        type="warning"
+        description="本站视频资源来源于网络公开资源，仅供个人学习交流使用，严禁用于商业用途。如果您喜欢本片，请支持正版。"
+        show-icon
+        :closable="false"
+      />
+    </div>
+
+    <div class="player-header">
+      <el-button 
+        type="primary" 
+        plain 
+        size="small" 
+        @click="goBack"
+        class="back-button"
+      >
+        <el-icon><ArrowLeft /></el-icon>
+        返回详情页
+      </el-button>
+    </div>
+
     <div class="player-container">
       <div id="dplayer"></div>
     </div>
@@ -30,6 +53,7 @@ import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
+import { ArrowLeft } from '@element-plus/icons-vue'
 import DPlayer from 'dplayer'
 import Hls from 'hls.js/dist/hls.min.js'
 
@@ -299,6 +323,12 @@ const loadVideoInfo = async () => {
   }
 }
 
+// 返回详情页
+const goBack = () => {
+  const { id } = route.params
+  router.push(`/video/detail/${id}`)
+}
+
 // 组件挂载时初始化
 onMounted(() => {
   loadVideoInfo()
@@ -324,6 +354,25 @@ watch(() => route.params, (newParams) => {
   min-height: 100vh;
   background-color: var(--page-background);
   padding: 20px;
+}
+
+.copyright-notice {
+  max-width: 1200px;
+  margin: 0 auto 20px;
+}
+
+.player-header {
+  max-width: 1200px;
+  margin: 0 auto 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.back-button {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .player-container {
