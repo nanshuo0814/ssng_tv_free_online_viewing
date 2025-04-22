@@ -10,8 +10,9 @@
   
       <!-- 底部信息 -->
       <footer class="page-footer">
-        <p>网站已运行 {{ runningTime }}</p>
-        <p>Copyright &copy; 2025 南烁. All Rights Reserved.</p>
+        <p>网站已运行 {{ runningTime }} <span class="heartbeat">❤️</span></p>
+        <p>Copyright &copy; 2025 <a target="_blank" href="https://www.nanshuo.icu" style="color: inherit;text-decoration: none;">南烁</a>. All Rights Reserved.</p>
+        <p class="copyright-notice">注：本站的所有资源均来源于网络公开的资源，若有侵权，请联系网站所有者删除，本站不承担任何法律责任</p>
         <!-- <p>作者: 南烁</p> -->
       </footer>
     </div>
@@ -50,6 +51,31 @@
   </script>
   
   <style scoped>
+  /* 心跳动画 */
+.heartbeat {
+  display: inline-block;
+  animation: heartbeat 1s infinite;
+  transform-origin: center;
+}
+
+@keyframes heartbeat {
+  0% {
+    transform: scale(1);
+  }
+  25% {
+    transform: scale(1.2);
+  }
+  50% {
+    transform: scale(1);
+  }
+  75% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
   .home-page {
     display: flex;
     flex-direction: column;
@@ -94,6 +120,13 @@
   
   .page-footer p {
     margin-bottom: 5px;
+  }
+  
+  .copyright-notice {
+    font-size: 12px;
+    color: var(--text-color-lighter);
+    max-width: 800px;
+    margin: 5px auto;
   }
   
   /* 响应式调整 */
