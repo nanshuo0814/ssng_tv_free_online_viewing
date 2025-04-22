@@ -83,11 +83,16 @@
           <div class="action-buttons">
             <el-button type="primary" @click="startPlay" v-if="playLists.length > 0">
               <el-icon class="button-icon"><VideoPlay /></el-icon>
-              立即播放
+              <span class="button-text">立即播放</span>
             </el-button>
-            <el-button type="warning" @click="addToFavorites">
-              <el-icon class="button-icon"><Star /></el-icon>
-              收藏
+            <el-button 
+              :type="isFavorited ? 'info' : 'success'" 
+              @click="toggleFavorite"
+            >
+              <el-icon class="button-icon">
+                <Star :class="{ 'is-favorited': isFavorited }" />
+              </el-icon>
+              <span class="button-text">{{ isFavorited ? '取消收藏' : '收藏' }}</span>
             </el-button>
           </div>
         </div>
@@ -154,27 +159,38 @@ const currentPlayUrl = ref('');
 const historyStore = useHistoryStore()
 const favoriteStore = useFavoriteStore()
 
-// 添加到收藏夹
-function addToFavorites() {
+// 判断是否已收藏
+const isFavorited = computed(() => {
+  return videoInfo.value ? favoriteStore.isFavorited(videoInfo.value.vod_id) : false;
+});
+
+// 切换收藏状态
+function toggleFavorite() {
   if (!videoInfo.value) return;
   
-  const favoriteItem = {
-    id: videoInfo.value.vod_id,
-    title: videoInfo.value.vod_name,
-    poster: videoInfo.value.vod_pic,
-    type: getVideoType(),
-    remarks: videoInfo.value.vod_remarks,
-    year: videoInfo.value.vod_year,
-    area: videoInfo.value.vod_area,
-    actors: videoInfo.value.vod_actor,
-    director: videoInfo.value.vod_director,
-    score: videoInfo.value.vod_score
-  };
-  
-  if (favoriteStore.addFavorite(favoriteItem)) {
-    ElMessage.success('已添加到收藏夹');
+  if (isFavorited.value) {
+    // 取消收藏
+    if (favoriteStore.removeFavorite(videoInfo.value.vod_id)) {
+      ElMessage.success('已取消收藏');
+    }
   } else {
-    ElMessage.warning('已经在收藏夹中');
+    // 添加收藏
+    const favoriteItem = {
+      id: videoInfo.value.vod_id,
+      title: videoInfo.value.vod_name,
+      poster: videoInfo.value.vod_pic,
+      type: getVideoType(),
+      remarks: videoInfo.value.vod_remarks,
+      year: videoInfo.value.vod_year,
+      area: videoInfo.value.vod_area,
+      actors: videoInfo.value.vod_actor,
+      director: videoInfo.value.vod_director,
+      score: videoInfo.value.vod_score
+    };
+    
+    if (favoriteStore.addFavorite(favoriteItem)) {
+      ElMessage.success('已添加到收藏');
+    }
   }
 }
 
@@ -436,12 +452,16 @@ onMounted(() => {
 .action-buttons .el-button {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   padding: 12px 20px;
 }
 
 .button-icon {
   font-size: 16px;
+}
+
+.button-text {
+  margin-left: 4px;
 }
 
 .section-title {
@@ -624,5 +644,10 @@ onMounted(() => {
     line-height: 36px;
     font-size: 13px;
   }
+}
+
+.is-favorited {
+  color: #ffd04b !important;
+  transform: scale(1.1);
 }
 </style> 

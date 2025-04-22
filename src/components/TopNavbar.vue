@@ -21,10 +21,46 @@
         <input
           v-model="searchQuery"
           @keyup.enter="handleSearch"
+          @focus="showDropdown = true"
+          @blur="handleBlur"
           type="text"
           placeholder="搜索电影、电视剧、动漫、短剧、综艺..."
           class="search-input"
         />
+        
+        <!-- 搜索历史下拉列表 -->
+        <div 
+          v-show="showDropdown && searchHistoryStore.history.length > 0" 
+          class="search-history-dropdown"
+          @mousedown.prevent
+        >
+          <div class="dropdown-header">
+            <span>搜索历史</span>
+            <el-button 
+              type="text" 
+              size="small" 
+              @click.stop="clearHistory"
+            >
+              清空历史
+            </el-button>
+          </div>
+          <div class="history-list">
+            <div 
+              v-for="(item, index) in searchHistoryStore.history" 
+              :key="index"
+              class="history-item"
+              @mousedown.prevent="searchTag(item)"
+            >
+              <span class="history-text">{{ item }}</span>
+              <el-icon 
+                class="delete-icon"
+                @mousedown.prevent.stop="removeHistory(item)"
+              >
+                <Close />
+              </el-icon>
+            </div>
+          </div>
+        </div>
       </div>
       
       <div class="navbar-actions">
@@ -50,21 +86,26 @@ import { ref, computed, onMounted, onBeforeMount, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useThemeStore } from '../stores/theme'
 import { useSidebarStore } from '../stores/sidebar'
+import { useSearchHistoryStore } from '../stores/searchHistory'
 import Icon from './Icon.vue'
 import WeatherDisplay from './WeatherDisplay.vue'
 import TimeDisplay from './TimeDisplay.vue'
 import ThemeColorPicker from './ThemeColorPicker.vue'
+import { Close } from '@element-plus/icons-vue'
+import { ElMessageBox, ElMessage } from 'element-plus'
 
 const router = useRouter()
 const route = useRoute()
 const themeStore = useThemeStore()
 const sidebarStore = useSidebarStore()
+const searchHistoryStore = useSearchHistoryStore()
 
 const searchQuery = ref('')
 const isDarkTheme = computed(() => themeStore.theme === 'dark')
 const isCollapsed = computed(() => sidebarStore.isCollapsed)
 const isMobile = ref(false)
 const isFullScreen = ref(false)
+const showDropdown = ref(false)
 
 // 只在移动模式且侧边栏折叠时显示logo
 const isMobileAndCollapsed = computed(() => {
@@ -81,8 +122,45 @@ function handleSearch() {
       path: '/search',
       query: { q: searchQuery.value }
     })
+    searchHistoryStore.addHistory(searchQuery.value.trim())
     searchQuery.value = ''
+    showDropdown.value = false
   }
+}
+
+function handleBlur() {
+  setTimeout(() => {
+    showDropdown.value = false
+  }, 200)
+}
+
+function searchTag(keyword) {
+  router.push({
+    path: '/search',
+    query: { q: keyword }
+  })
+  searchQuery.value = ''
+  showDropdown.value = false
+}
+
+function removeHistory(keyword, event) {
+  if (event) event.stopPropagation()
+  searchHistoryStore.removeHistory(keyword)
+}
+
+function clearHistory() {
+  ElMessageBox.confirm(
+    '确定要清空所有搜索历史吗？',
+    '提示',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    }
+  ).then(() => {
+    searchHistoryStore.clearHistory()
+    ElMessage.success('已清空搜索历史')
+  }).catch(() => {})
 }
 
 function toggleTheme() {
@@ -203,9 +281,9 @@ onUnmounted(() => {
 
 .search-box {
   position: relative;
-  flex: 1 1 auto; /* 让搜索框自动填充可用空间 */
-  margin: 0 5px; /* 两侧添加少量间距 */
-  max-width: 550px; /* 设置最大宽度，防止过宽 */
+  flex: 1 1 auto;
+  margin: 0 5px;
+  max-width: 550px;
 }
 
 .search-input {
@@ -267,6 +345,60 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.search-history-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 8px;
+  background-color: var(--card-background);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+}
+
+.dropdown-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-color);
+}
+
+.history-list {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.history-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  color: var(--text-color);
+}
+
+.history-item:hover {
+  background-color: var(--theme-color-10);
+}
+
+.history-text {
+  flex: 1;
+}
+
+.delete-icon {
+  opacity: 0.6;
+  transition: opacity 0.3s ease;
+  font-size: 14px;
+}
+
+.delete-icon:hover {
+  opacity: 1;
 }
 
 @media (max-width: 1200px) {
