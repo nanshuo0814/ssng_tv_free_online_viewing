@@ -58,6 +58,7 @@ import { ArrowLeft } from '@element-plus/icons-vue'
 import DPlayer from 'dplayer'
 import Hls from 'hls.js/dist/hls.min.js'
 import { useThemeStore } from '@/stores/theme'
+import { useHistoryStore } from '../stores/history'
 
 const themeStore = useThemeStore()
 const isDarkTheme = computed(() => themeStore.theme === 'dark')
@@ -79,6 +80,8 @@ const episodes = ref([])
 const currentEpisode = ref(null)
 const error = ref(null)
 const hlsInstance = ref(null) // 添加 HLS 实例引用
+
+const historyStore = useHistoryStore()
 
 // 计算当前集数名称
 const currentEpisodeName = computed(() => {
@@ -345,6 +348,9 @@ const loadVideoInfo = async () => {
     }
     
     initPlayer(currentEpisode.value.url);
+
+    // 获取到视频信息后添加到历史记录
+    addToHistory()
   } catch (error) {
     console.error('加载视频信息失败:', error);
     ElMessage.error(error.message || '加载视频信息失败');
@@ -359,8 +365,39 @@ const goBack = () => {
   router.push(`/video/detail/${id}`)
 }
 
+// 在视频信息加载成功后添加到历史记录
+const addToHistory = () => {
+  if (videoInfo.value) {
+    const historyItem = {
+      id: videoInfo.value.vod_id,
+      title: videoInfo.value.vod_name,
+      type: getVideoType(),
+      url: route.fullPath,
+      poster: videoInfo.value.vod_pic,
+      description: videoInfo.value.vod_content,
+      actors: videoInfo.value.vod_actor,
+      director: videoInfo.value.vod_director,
+      year: videoInfo.value.vod_year,
+      area: videoInfo.value.vod_area,
+      remarks: videoInfo.value.vod_remarks,
+      score: videoInfo.value.vod_score
+    }
+    console.log('添加到历史记录:', historyItem)
+    historyStore.addHistory(historyItem)
+  }
+}
+
+// 获取视频类型
+const getVideoType = () => {
+  // 从URL中提取类型
+  const pathParts = route.path.split('/')
+  const type = pathParts[1] // 例如 /tv/play/... 中的 tv
+  return type
+}
+
 // 组件挂载时初始化
 onMounted(() => {
+  historyStore.loadFromLocal()
   loadVideoInfo()
 })
 

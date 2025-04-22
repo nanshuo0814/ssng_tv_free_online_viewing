@@ -134,6 +134,8 @@ import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
 import { ElMessage } from 'element-plus';
 import { VideoPlay, Star } from '@element-plus/icons-vue'
+import { useHistoryStore } from '../stores/history'
+import { useFavoriteStore } from '../stores/favorite'
 
 // 从路由参数中获取视频ID
 const route = useRoute();
@@ -148,40 +150,40 @@ const activePlaySource = ref('');
 const activeEpisode = ref('');
 const currentPlayUrl = ref('');
 
+// 在 setup 中添加
+const historyStore = useHistoryStore()
+const favoriteStore = useFavoriteStore()
+
 // 添加到收藏夹
 function addToFavorites() {
   if (!videoInfo.value) return;
   
-  try {
-    // 获取当前收藏列表
-    const favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
-    
-    // 检查是否已经收藏
-    const exists = favorites.some(item => item.vod_id === videoInfo.value.vod_id);
-    
-    if (exists) {
-      ElMessage.warning('已经在收藏夹中');
-      return;
-    }
-    
-    // 添加到收藏夹
-    favorites.push({
-      vod_id: videoInfo.value.vod_id,
-      vod_name: videoInfo.value.vod_name,
-      vod_pic: videoInfo.value.vod_pic,
-      vod_remarks: videoInfo.value.vod_remarks,
-      vod_year: videoInfo.value.vod_year,
-      add_time: new Date().toISOString()
-    });
-    
-    // 保存到本地存储
-    localStorage.setItem('favorites', JSON.stringify(favorites));
-    
+  const favoriteItem = {
+    id: videoInfo.value.vod_id,
+    title: videoInfo.value.vod_name,
+    poster: videoInfo.value.vod_pic,
+    type: getVideoType(),
+    remarks: videoInfo.value.vod_remarks,
+    year: videoInfo.value.vod_year,
+    area: videoInfo.value.vod_area,
+    actors: videoInfo.value.vod_actor,
+    director: videoInfo.value.vod_director,
+    score: videoInfo.value.vod_score
+  };
+  
+  if (favoriteStore.addFavorite(favoriteItem)) {
     ElMessage.success('已添加到收藏夹');
-  } catch (error) {
-    console.error('添加收藏失败', error);
-    ElMessage.error('添加收藏失败');
+  } else {
+    ElMessage.warning('已经在收藏夹中');
   }
+}
+
+// 获取视频类型
+function getVideoType() {
+  // 从URL中提取类型
+  const pathParts = route.path.split('/')
+  const type = pathParts[1] // 例如 /tv/detail/... 中的 tv
+  return type || 'video'
 }
 
 // 开始播放第一集
@@ -226,6 +228,28 @@ const playerUrl = computed(() => {
   return `/player.html?url=${encodeURIComponent(currentPlayUrl.value)}&title=${encodeURIComponent(videoInfo.value ? videoInfo.value.vod_name : '')}`;
 });
 
+// 在视频信息加载成功后添加到历史记录
+const addToHistory = () => {
+  if (videoInfo.value) {
+    const historyItem = {
+      id: videoInfo.value.vod_id,
+      title: videoInfo.value.vod_name,
+      type: getVideoType(),
+      url: route.fullPath,
+      poster: videoInfo.value.vod_pic,
+      description: videoInfo.value.vod_content,
+      actors: videoInfo.value.vod_actor,
+      director: videoInfo.value.vod_director,
+      year: videoInfo.value.vod_year,
+      area: videoInfo.value.vod_area,
+      remarks: videoInfo.value.vod_remarks,
+      score: videoInfo.value.vod_score
+    }
+    console.log('添加到历史记录:', historyItem)
+    historyStore.addHistory(historyItem)
+  }
+}
+
 // 加载视频详情
 async function loadVideoDetail() {
   loading.value = true;
@@ -244,8 +268,8 @@ async function loadVideoDetail() {
     if (result && result.code === 1 && result.list && result.list.length > 0) {
       videoInfo.value = result.list[0];
       
-      // 保存到观看历史
-      saveToHistory(videoInfo.value);
+      // 获取到视频信息后添加到历史记录
+      addToHistory();
       
       // 自动选择第一个播放源和第一集
       if (playLists.value.length > 0) {
@@ -265,35 +289,6 @@ async function loadVideoDetail() {
     console.error('加载视频详情失败', err);
   } finally {
     loading.value = false;
-  }
-}
-
-// 保存到观看历史
-function saveToHistory(video) {
-  try {
-    // 获取当前历史记录
-    const history = JSON.parse(localStorage.getItem('watchHistory') || '[]');
-    
-    // 删除已存在的相同ID记录
-    const filtered = history.filter(item => item.vod_id !== video.vod_id);
-    
-    // 添加新记录到开头
-    filtered.unshift({
-      vod_id: video.vod_id,
-      vod_name: video.vod_name,
-      vod_pic: video.vod_pic,
-      vod_remarks: video.vod_remarks,
-      vod_year: video.vod_year,
-      watch_time: new Date().toISOString()
-    });
-    
-    // 只保留最近的50条记录
-    const trimmed = filtered.slice(0, 50);
-    
-    // 保存到本地存储
-    localStorage.setItem('watchHistory', JSON.stringify(trimmed));
-  } catch (error) {
-    console.error('保存历史记录失败', error);
   }
 }
 
@@ -342,10 +337,11 @@ watch(() => route.params.id, (newId) => {
   }
 });
 
-// 组件挂载时加载数据
+// 确保在组件挂载时加载历史记录
 onMounted(() => {
-  loadVideoDetail();
-});
+  historyStore.loadFromLocal()
+  loadVideoDetail()
+})
 </script>
 
 <style scoped>

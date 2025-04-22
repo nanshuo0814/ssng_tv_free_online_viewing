@@ -50,12 +50,18 @@ const routes = [
   {
     path: '/favorites',
     name: 'Favorites',
-    component: () => import('@/views/Favorites.vue')
+    component: () => import('../views/Favorites.vue'),
+    meta: {
+      title: '我的收藏'
+    }
   },
   {
     path: '/history',
     name: 'History',
-    component: () => import('@/views/History.vue')
+    component: () => import('../views/History.vue'),
+    meta: {
+      title: '观看历史'
+    }
   },
   // 新增的影片详情路由
   {

@@ -2,40 +2,74 @@ import { defineStore } from 'pinia'
 
 export const useFavoriteStore = defineStore('favorite', {
   state: () => ({
-    favorites: JSON.parse(localStorage.getItem('favorites') || '[]')
+    favorites: []
   }),
 
   actions: {
     addFavorite(item) {
       // 检查是否已存在
-      const exists = this.favorites.some(fav => fav.id === item.id)
-      
-      if (!exists) {
-        this.favorites.push({
-          ...item,
-          added_date: new Date().toISOString()
-        })
-        
-        this.saveToLocalStorage()
+      const index = this.favorites.findIndex(f => f.id === item.id)
+      if (index !== -1) {
+        return false // 已经收藏过了
       }
+      
+      // 添加到收藏
+      this.favorites.unshift({
+        ...item,
+        timestamp: new Date().toISOString()
+      })
+      
+      // 保存到本地存储
+      this.saveToLocal()
+      return true
     },
-    
+
     removeFavorite(id) {
-      this.favorites = this.favorites.filter(item => item.id !== id)
-      this.saveToLocalStorage()
+      const index = this.favorites.findIndex(f => f.id === id)
+      if (index !== -1) {
+        this.favorites.splice(index, 1)
+        this.saveToLocal()
+        return true
+      }
+      return false
     },
-    
+
     clearFavorites() {
       this.favorites = []
-      this.saveToLocalStorage()
+      this.saveToLocal()
     },
-    
-    isFavorite(id) {
-      return this.favorites.some(item => item.id === id)
+
+    saveToLocal() {
+      try {
+        localStorage.setItem('favorites', JSON.stringify(this.favorites))
+        console.log('收藏已保存到本地存储')
+      } catch (error) {
+        console.error('保存收藏到本地存储失败:', error)
+      }
     },
-    
-    saveToLocalStorage() {
-      localStorage.setItem('favorites', JSON.stringify(this.favorites))
+
+    loadFromLocal() {
+      try {
+        const saved = localStorage.getItem('favorites')
+        if (saved) {
+          this.favorites = JSON.parse(saved)
+          console.log('从本地存储加载收藏:', this.favorites)
+        }
+      } catch (error) {
+        console.error('从本地存储加载收藏失败:', error)
+        this.favorites = []
+      }
+    },
+
+    // 检查是否已收藏
+    isFavorited(id) {
+      return this.favorites.some(f => f.id === id)
     }
+  },
+
+  getters: {
+    getFavorites: (state) => state.favorites,
+    
+    getFavoritesCount: (state) => state.favorites.length
   }
 }) 
