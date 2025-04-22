@@ -1,6 +1,5 @@
 <template>
   <div class="search-page">
-
     <div class="search-header">
       <h2 class="search-title">搜索结果: "{{ searchQuery }}"</h2>
       <div class="search-filters">
@@ -115,8 +114,9 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useSearchHistoryStore } from '../stores/searchHistory'
+import { Close } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -144,12 +144,10 @@ const currentFilter = ref('all')
 const popularTags = [
   '斗罗大陆',
   '完美世界',
-  '武神主宰',
-  '星汉灿烂',
-  '长相思',
-  '扫黑风暴',
-  '狂飙',
-  '流浪地球'
+  '斗破苍穹',
+  '仙逆',
+  '吞噬星空',
+  '师兄啊师兄',
 ]
 
 // 搜索结果

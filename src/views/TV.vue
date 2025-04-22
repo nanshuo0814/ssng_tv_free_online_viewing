@@ -1,5 +1,5 @@
 <template>
-  <div class="tv">
+  <!-- <div class="tv"> -->
     <div class="tv-header">
       <h2 style="">电视剧</h2>
       
@@ -15,26 +15,6 @@
           {{ type.label }}
         </div>
       </div>
-      
-      <!-- 恢复筛选条件区域 -->
-      <!-- <div class="filter-bar">
-        <el-select v-model="filterOrder" placeholder="排序方式" class="filter-select" @change="handleFilterChange">
-          <el-option label="热门排序" value="popular"></el-option>
-          <el-option label="评分排序" value="rating"></el-option>
-          <el-option label="最新上线" value="newest"></el-option>
-        </el-select>
-        <el-select v-model="filterYear" placeholder="年代" class="filter-select" @change="handleFilterChange">
-          <el-option label="全部" value="all"></el-option>
-          <el-option label="2024" value="2024"></el-option>
-          <el-option label="2023" value="2023"></el-option>
-          <el-option label="2022" value="2022"></el-option>
-          <el-option label="2021" value="2021"></el-option>
-          <el-option label="2020" value="2020"></el-option>
-          <el-option label="2010年代" value="2010s"></el-option>
-          <el-option label="2000年代" value="2000s"></el-option>
-          <el-option label="更早" value="earlier"></el-option>
-        </el-select>
-      </div> -->
       </div>
 
     <!-- 加载状态 -->
@@ -89,7 +69,7 @@
         class="pagination-dark"
       />
     </div>
-  </div>
+  <!-- </div> -->
 </template>
 
 <script setup>
@@ -97,7 +77,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useFavoriteStore } from '@/stores/favorite'
 import { useThemeStore } from '../stores/theme'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Star, VideoPlay } from '@element-plus/icons-vue'
 import axios from 'axios'
 
@@ -493,14 +473,6 @@ const truncateText = (text, maxLength) => {
 .drama-tab.active {
   background-color: #8e44ad; /* 紫色背景 */
   color: white;
-}
-
-/* 恢复筛选条件样式 */
-.filter-bar {
-  display: flex;
-  gap: 15px;
-  flex-wrap: wrap;
-  margin-bottom: 20px;
 }
 
 .filter-select {
