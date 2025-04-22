@@ -82,23 +82,21 @@
 
           <div class="action-buttons">
             <el-button type="primary" @click="startPlay" v-if="playLists.length > 0">
+              <el-icon class="button-icon"><VideoPlay /></el-icon>
               立即播放
             </el-button>
-            <el-button type="info" @click="addToFavorites">
+            <el-button type="warning" @click="addToFavorites">
+              <el-icon class="button-icon"><Star /></el-icon>
               收藏
             </el-button>
           </div>
         </div>
       </div>
       
-      <div class="video-play-section">
+      <div class="video-play-section" v-if="playLists.length > 0">
         <div class="section-title">播放列表</div>
         
-        <div v-if="playLists.length === 0" class="no-play-list">
-          暂无播放资源
-        </div>
-        
-        <div v-else class="play-tabs">
+        <div class="play-tabs">
           <el-tabs v-model="activePlaySource" type="card">
             <el-tab-pane 
               v-for="(playList, index) in playLists" 
@@ -106,7 +104,7 @@
               :label="playList.source"
               :name="playList.source"
             >
-              <div class="episode-list">
+              <div class="episode-grid">
                 <el-button
                   v-for="episode in playList.episodes"
                   :key="episode.url"
@@ -119,17 +117,6 @@
               </div>
             </el-tab-pane>
           </el-tabs>
-        </div>
-      </div>
-      
-      <div class="video-player-section" v-if="currentPlayUrl">
-        <div class="player-container">
-          <iframe 
-            :src="playerUrl" 
-            frameborder="0" 
-            allowfullscreen
-            class="video-frame"
-          ></iframe>
         </div>
       </div>
       
@@ -146,6 +133,7 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
 import { ElMessage } from 'element-plus';
+import { VideoPlay, Star } from '@element-plus/icons-vue'
 
 // 从路由参数中获取视频ID
 const route = useRoute();
@@ -375,6 +363,7 @@ onMounted(() => {
   padding: 20px;
   max-width: 1200px;
   margin: 0 auto;
+  color: var(--text-color);
 }
 
 .loading-container,
@@ -384,6 +373,13 @@ onMounted(() => {
   display: flex;
   justify-content: center;
   align-items: center;
+}
+
+.video-detail-content {
+  background-color: var(--card-background);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: var(--card-shadow);
 }
 
 .video-info-section {
@@ -397,7 +393,7 @@ onMounted(() => {
   height: 350px;
   overflow: hidden;
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--image-shadow);
 }
 
 .video-poster img {
@@ -414,12 +410,13 @@ onMounted(() => {
   font-size: 24px;
   margin-top: 0;
   margin-bottom: 20px;
+  color: var(--text-color);
 }
 
 .video-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 15px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
   margin-bottom: 20px;
 }
 
@@ -429,15 +426,15 @@ onMounted(() => {
 }
 
 .meta-label {
-  font-weight: bold;
-  margin-right: 5px;
-  color: #666;
+  color: var(--text-color-light);
+  margin-right: 8px;
+  font-weight: 500;
 }
 
 .video-cast,
 .video-director,
 .video-update-time {
-  margin-bottom: 15px;
+  margin-bottom: 16px;
 }
 
 .cast-list {
@@ -445,73 +442,199 @@ onMounted(() => {
 }
 
 .action-buttons {
-  margin-top: 30px;
   display: flex;
-  gap: 10px;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.action-buttons .el-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 20px;
+}
+
+.button-icon {
+  font-size: 16px;
 }
 
 .section-title {
   font-size: 18px;
-  font-weight: bold;
-  margin-bottom: 15px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid #eee;
+  font-weight: 600;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-color);
 }
 
 .play-tabs {
-  margin-bottom: 30px;
+  margin-top: 16px;
+  background-color: var(--card-background);
+  border-radius: 12px;
+  /* padding: 20px; */
 }
 
-.episode-list {
-  display: flex;
-  flex-wrap: wrap;
+.episode-grid {
+  display: grid;
+  grid-template-columns: repeat(14, minmax(60px, 1fr));
   gap: 10px;
-  margin-top: 15px;
+  margin-top: 20px;
+  padding: 5px;
+  width: 100%;
+  overflow-x: auto;
 }
 
-.player-container {
-  position: relative;
-  width: 100%;
-  padding-top: 56.25%; /* 16:9 Aspect Ratio */
-  margin-bottom: 30px;
+.episode-grid::-webkit-scrollbar {
+  height: 6px;
 }
 
-.video-frame {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+.episode-grid::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb);
+  border-radius: 3px;
+}
+
+.episode-grid::-webkit-scrollbar-track {
+  background-color: var(--scrollbar-track);
+  border-radius: 3px;
+}
+
+.episode-grid .el-button {
+  width: 60px;
+  height: 40px;
   border-radius: 8px;
+  transition: all 0.3s ease;
+  background-color: var(--button-bg);
+  border: 1px solid var(--border-color);
+  color: var(--text-color);
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  margin: 0;
+}
+
+.episode-grid .el-button:hover {
+  background-color: var(--button-hover-bg);
+  border-color: var(--theme-color);
+  color: var(--theme-color);
+  transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.episode-grid .el-button.is-active {
+  background-color: var(--theme-color);
+  color: white;
+  border-color: var(--theme-color);
+  transform: translateY(-2px);
+  box-shadow: 0 2px 12px rgba(var(--theme-color-rgb), 0.3);
 }
 
 .video-description {
-  margin-bottom: 30px;
+  margin-top: 30px;
 }
 
 .description-content {
   line-height: 1.8;
-  color: #555;
+  color: var(--text-color);
+  white-space: pre-line;
 }
 
-.no-play-list {
-  padding: 20px;
-  text-align: center;
-  color: #999;
-  background: #f9f9f9;
+:deep(.el-tabs__header) {
+  margin: 0;
+  border-bottom: none;
+}
+
+:deep(.el-tabs--card > .el-tabs__header) {
+  border-bottom: none;
+}
+
+:deep(.el-tabs--card > .el-tabs__header .el-tabs__nav) {
+  border: none;
+  background-color: transparent;
+}
+
+:deep(.el-tabs--card > .el-tabs__header .el-tabs__item) {
+  border: 1px solid var(--border-color);
+  background-color: var(--button-bg);
+  color: var(--text-color);
+  transition: all 0.3s ease;
   border-radius: 8px;
-  margin-bottom: 30px;
+  margin: 0 6px;
+  height: 36px;
+  line-height: 36px;
+}
+
+:deep(.el-tabs--card > .el-tabs__header .el-tabs__item:first-child) {
+  margin-left: 0;
+}
+
+:deep(.el-tabs--card > .el-tabs__header .el-tabs__item:hover) {
+  color: var(--theme-color);
+  border-color: var(--theme-color);
+}
+
+:deep(.el-tabs--card > .el-tabs__header .el-tabs__item.is-active) {
+  background-color: var(--theme-color);
+  border-color: var(--theme-color);
+  color: white;
 }
 
 @media (max-width: 768px) {
   .video-info-section {
     flex-direction: column;
   }
-  
+
   .video-poster {
-    flex: 0 0 auto;
-    max-width: 100%;
-    max-height: 300px;
+    width: 200px;
+    height: 280px;
+    margin: 0 auto;
+  }
+
+  .video-meta {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  }
+
+  .play-tabs {
+    /* padding: 16px; */
+  }
+
+  .episode-grid {
+    grid-template-columns: repeat(7, minmax(50px, 1fr));
+    gap: 8px;
+  }
+
+  .episode-grid .el-button {
+    width: 50px;
+    height: 36px;
+    font-size: 13px;
+  }
+
+  :deep(.el-tabs--card > .el-tabs__header .el-tabs__item) {
+    margin: 0 4px;
+    padding: 0 12px;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1200px) {
+  .episode-grid {
+    grid-template-columns: repeat(10, minmax(55px, 1fr));
+    gap: 10px;
+  }
+
+  .episode-grid .el-button {
+    width: 55px;
+  }
+}
+
+@media (min-width: 1201px) {
+  .episode-grid {
+    grid-template-columns: repeat(14, minmax(60px, 1fr));
+  }
+
+  .episode-grid .el-button {
+    width: 60px;
   }
 }
 </style> 
