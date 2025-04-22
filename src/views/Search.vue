@@ -77,7 +77,7 @@
       <div class="search-history" v-if="searchHistoryStore.history.length > 0">
         <div class="history-header">
           <h4>搜索历史</h4>
-          <el-button type="text" @click="clearHistory">清空历史</el-button>
+          <el-button link @click="clearHistory">清空历史</el-button>
         </div>
         <div class="history-tags">
           <div 
@@ -135,7 +135,8 @@ const filters = [
   { label: '电影', value: 'movie' },
   { label: '电视剧', value: 'tv' },
   { label: '动漫', value: 'anime' },
-  { label: '综艺', value: 'variety' }
+  { label: '综艺', value: 'variety' },
+  { label: '短剧', value: 'shorts' }
 ]
 
 const currentFilter = ref('all')
@@ -171,6 +172,8 @@ const filteredResults = computed(() => {
         return typeId === 4
       case 'variety':
         return typeId === 3
+      case 'shorts':
+        return typeId >= 45 && typeId <= 56  // 添加短剧的type_id范围
       default:
         return true
     }

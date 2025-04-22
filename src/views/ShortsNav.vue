@@ -1,5 +1,5 @@
 <template>
-  <!-- <div class="drama-nav"> -->
+  <div class="shorts-nav">
     <h2 style="margin-bottom: 0px;
   padding: 15px 15px 5px;">短剧</h2>
     <!-- 短剧类型导航栏 -->
@@ -69,7 +69,7 @@
         </div>
       </div>
     </div>
-  <!-- </div> -->
+  </div>
 </template>
 
 <script setup>

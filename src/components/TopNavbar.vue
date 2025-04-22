@@ -37,7 +37,7 @@
           <div class="dropdown-header">
             <span>搜索历史</span>
             <el-button 
-              type="text" 
+              link 
               size="small" 
               @click.stop="clearHistory"
             >
