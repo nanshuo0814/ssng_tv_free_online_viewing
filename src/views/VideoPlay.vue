@@ -489,30 +489,18 @@ watch(() => route.params, (newParams) => {
 
 .episode-list {
   display: grid;
-  grid-template-columns: repeat(14, minmax(60px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   gap: 10px;
   padding: 5px;
   width: 100%;
   overflow-x: auto;
 }
 
-.episode-list::-webkit-scrollbar {
-  height: 6px;
-}
-
-.episode-list::-webkit-scrollbar-thumb {
-  background-color: var(--scrollbar-thumb);
-  border-radius: 3px;
-}
-
-.episode-list::-webkit-scrollbar-track {
-  background-color: var(--scrollbar-track);
-  border-radius: 3px;
-}
-
 .episode-list .el-button {
-  width: 60px;
-  height: 40px;
+  width: 100%;
+  min-width: 120px;
+  height: auto;
+  min-height: 40px;
   border-radius: 8px;
   transition: all 0.3s ease;
   background-color: var(--button-bg);
@@ -523,8 +511,12 @@ watch(() => route.params, (newParams) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0;
+  padding: 8px 12px;
   margin: 0;
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.2;
+  text-align: center;
 }
 
 .episode-list .el-button:hover {
@@ -553,24 +545,21 @@ watch(() => route.params, (newParams) => {
   }
 
   .episode-list {
-    grid-template-columns: repeat(7, minmax(50px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
     gap: 8px;
   }
 
   .episode-list .el-button {
-    width: 50px;
-    height: 36px;
+    min-width: 100px;
+    min-height: 36px;
     font-size: 13px;
+    padding: 6px 8px;
   }
 }
 
 @media (min-width: 769px) and (max-width: 1200px) {
   .episode-list {
-    grid-template-columns: repeat(10, minmax(55px, 1fr));
-  }
-
-  .episode-list .el-button {
-    width: 55px;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
   }
 }
 </style> 
