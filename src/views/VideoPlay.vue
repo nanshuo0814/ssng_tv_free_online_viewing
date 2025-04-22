@@ -1,5 +1,5 @@
 <template>
-  <div class="video-play-page">
+  <div class="video-play-page" :class="{ 'dark-theme': isDarkTheme }">
     <div class="copyright-notice">
       <el-alert
         title="温馨提示"
@@ -7,12 +7,13 @@
         description="本站视频资源来源于网络公开资源，仅供个人学习交流使用，严禁用于商业用途。如果您喜欢本片，请支持正版。"
         show-icon
         :closable="false"
+        class="custom-alert"
       />
     </div>
 
     <div class="player-header">
       <el-button 
-        type="primary" 
+        :type="isDarkTheme ? 'default' : 'primary'" 
         plain 
         size="small" 
         @click="goBack"
@@ -56,6 +57,10 @@ import { ElMessage } from 'element-plus'
 import { ArrowLeft } from '@element-plus/icons-vue'
 import DPlayer from 'dplayer'
 import Hls from 'hls.js/dist/hls.min.js'
+import { useThemeStore } from '@/stores/theme'
+
+const themeStore = useThemeStore()
+const isDarkTheme = computed(() => themeStore.theme === 'dark')
 
 // 添加 DPlayer 样式
 const style = document.createElement('link')
@@ -354,6 +359,7 @@ watch(() => route.params, (newParams) => {
   min-height: 100vh;
   background-color: var(--page-background);
   padding: 20px;
+  transition: background-color 0.3s ease;
 }
 
 .copyright-notice {
@@ -361,18 +367,54 @@ watch(() => route.params, (newParams) => {
   margin: 0 auto 20px;
 }
 
+/* 自定义 Alert 样式 */
+:deep(.custom-alert) {
+  background-color: var(--el-color-warning-light-9) !important;
+  color: var(--el-text-color-primary) !important;
+}
+
+:deep(.custom-alert .el-alert__title) {
+  color: var(--el-text-color-primary) !important;
+}
+
+:deep(.custom-alert .el-alert__description) {
+  color: var(--el-text-color-regular) !important;
+}
+
+.dark-theme :deep(.custom-alert) {
+  background-color: rgba(230, 162, 60, 0.1) !important;
+  border-color: rgba(230, 162, 60, 0.3) !important;
+}
+
+.dark-theme :deep(.custom-alert .el-alert__icon) {
+  color: var(--el-color-warning) !important;
+}
+
 .player-header {
   max-width: 1200px;
-  margin: 0 auto 20px;
+  margin: 0 auto 15px;
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
 .back-button {
+  height: 30px;
   display: flex;
   align-items: center;
   gap: 4px;
+  transition: all 0.3s ease;
+}
+
+.dark-theme .back-button {
+  color: var(--el-text-color-primary);
+  border-color: var(--el-border-color);
+}
+
+.dark-theme .back-button:hover {
+  color: var(--el-color-primary);
+  border-color: var(--el-color-primary);
+  background-color: var(--el-color-primary-light-9);
 }
 
 .player-container {
