@@ -64,8 +64,8 @@
       </div>
       
       <div class="navbar-actions">
-        <!-- 添加全屏图标 -->
-        <div class="nav-action" @click="toggleFullScreen" title="全屏/退出全屏">
+        <!-- 添加全屏图标，添加pc-only类 -->
+        <div class="nav-action pc-only" @click="toggleFullScreen" title="全屏/退出全屏">
           <Icon :name="isFullScreen ? 'ExitFullScreen' : 'FullScreen'" :color="isFullScreen ? 'var(--theme-color)' : 'var(--text-color)'" />
         </div>
         

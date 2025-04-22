@@ -436,7 +436,14 @@ const handleBlur = () => {
   font-size: 12px;
   color: var(--text-color-light);
   display: flex;
+  align-items: center;
   gap: 8px;
+}
+
+.movie-meta span {
+  display: flex;
+  align-items: center;
+  line-height: 1;
 }
 
 .score {

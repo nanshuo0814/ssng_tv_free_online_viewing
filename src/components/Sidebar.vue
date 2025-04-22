@@ -49,6 +49,19 @@
           <span>历史记录</span>
         </router-link>
       </div>
+
+      <!-- 移动端天气和时间显示 -->
+      <div class="mobile-info-section" v-if="isMobile && !isCollapsed">
+        <div class="section-title">实时信息</div>
+        <div class="mobile-info">
+          <div class="info-item">
+            <WeatherDisplay />
+          </div>
+          <div class="info-item">
+            <TimeDisplay />
+          </div>
+        </div>
+      </div>
     </nav>
 
     <div class="sidebar-footer" :class="{ 'collapsed': isCollapsed }">
@@ -69,6 +82,8 @@ import { useThemeStore } from '../stores/theme'
 import { useSidebarStore } from '../stores/sidebar'
 import Icon from './Icon.vue'
 import FpsCounter from './FpsCounter.vue'
+import WeatherDisplay from './WeatherDisplay.vue'
+import TimeDisplay from './TimeDisplay.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -204,7 +219,7 @@ onMounted(() => {
 
 .sidebar-nav {
   flex: 1;
-  padding: 16px 0;
+  padding: 14px 0 0 0;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
@@ -314,6 +329,34 @@ onMounted(() => {
 
 .sidebar.collapsed .section-title {
   display: none;
+}
+
+.mobile-info-section {
+  /* margin-top: 20px; */
+  border-top: 1px solid var(--border-color);
+  padding-top: 16px;
+}
+
+.mobile-info {
+  padding: 8px 24px;
+}
+
+.info-item {
+  margin-bottom: 8px;
+}
+
+.info-item :deep(.weather-display),
+.info-item :deep(.time-display) {
+  color: var(--text-color);
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+}
+
+@media (min-width: 769px) {
+  .mobile-info-section {
+    display: none;
+  }
 }
 
 @media (max-width: 992px) {
