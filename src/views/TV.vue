@@ -64,8 +64,11 @@
       </div>
 
       <!-- 加载更多提示 -->
-      <div v-if="loading" class="loading-more">
-        <el-skeleton :rows="1" animated />
+      <div v-if="loadingMore" class="loading-more">
+        <div class="loading-spinner">
+          <el-icon class="is-loading"><Loading /></el-icon>
+          <span>正在加载更多...</span>
+        </div>
       </div>
     </div>
   <!-- </div> -->
@@ -77,7 +80,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useFavoriteStore } from '@/stores/favorite'
 import { useThemeStore } from '../stores/theme'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Star, VideoPlay } from '@element-plus/icons-vue'
+import { Star, VideoPlay, Loading } from '@element-plus/icons-vue'
 import axios from 'axios'
 
 // 获取主题状态
@@ -618,6 +621,26 @@ const truncateText = (text, maxLength) => {
 .pagination-container,
 :deep(.pagination-dark) {
   display: none;
+}
+
+/* 加载更多样式优化 */
+.loading-more {
+  padding: 20px;
+  text-align: center;
+}
+
+.loading-spinner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--text-color);
+  font-size: 14px;
+}
+
+.loading-spinner .el-icon {
+  font-size: 20px;
+  color: var(--text-color);
 }
 
 @media (max-width: 768px) {

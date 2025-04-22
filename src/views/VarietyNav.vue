@@ -62,8 +62,11 @@
       </div>
 
       <!-- 加载更多提示 -->
-      <div v-if="loading" class="loading-more">
-        <el-skeleton :rows="1" animated />
+      <div v-if="loadingMore" class="loading-more">
+        <div class="loading-spinner">
+          <el-icon class="is-loading"><Loading /></el-icon>
+          <span>正在加载更多...</span>
+        </div>
       </div>
     </div>
   <!-- </div> -->
@@ -72,6 +75,7 @@
 <script setup>
 import { ref, onMounted, computed, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import { Loading } from '@element-plus/icons-vue'
 import axios from 'axios'
 import { useThemeStore } from '../stores/theme'
 
@@ -115,8 +119,11 @@ const handleScroll = async () => {
   if (scrollHeight - scrollTop - clientHeight < 100) {
     currentPage.value++
     loadingMore.value = true
-    await fetchVarieties(true) // 传入true表示是加载更多
-    loadingMore.value = false
+    try {
+      await fetchVarieties(true) // 传入true表示是加载更多
+    } finally {
+      loadingMore.value = false
+    }
   }
 }
 
@@ -445,9 +452,34 @@ onUnmounted(() => {
   font-size: 14px;
 }
 
+/* 加载更多样式优化 */
 .loading-more {
   padding: 20px;
   text-align: center;
+}
+
+.loading-spinner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--text-color);
+  font-size: 14px;
+}
+
+.loading-spinner .el-icon {
+  font-size: 20px;
+  color: var(--text-color);
+  animation: rotate 1s linear infinite;
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* 移除旧的分页样式 */
