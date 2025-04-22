@@ -27,7 +27,13 @@
         共 {{ totalAnimes }} 部动漫
       </div>
       
-      <div class="anime-grid">
+      <!-- 添加空状态显示 -->
+      <div v-if="animes.length === 0" class="empty-state">
+        <img src="@/assets/empty-box.svg" alt="暂无数据" class="empty-icon">
+        <p class="empty-text">暂无数据</p>
+      </div>
+
+      <div v-else class="anime-grid">
         <div v-for="anime in animes" :key="anime.vod_id" class="anime-card">
           <router-link :to="`/video/detail/${anime.vod_id}`" class="anime-link">
             <div class="anime-poster">
@@ -147,93 +153,51 @@ const fetchAnimes = async (isLoadMore = false) => {
         }
       })
       
-      if (response.data && response.data.code === 1 && response.data.list && response.data.list.length > 0) {
-        if (isLoadMore) {
-          animes.value = [...animes.value, ...response.data.list]
+      if (response.data && response.data.code === 1) {
+        if (response.data.list && response.data.list.length > 0) {
+          if (isLoadMore) {
+            animes.value = [...animes.value, ...response.data.list]
+          } else {
+            animes.value = response.data.list
+          }
+          totalAnimes.value = parseInt(response.data.total) || 0
+          hasMore.value = animes.value.length < totalAnimes.value
         } else {
-          animes.value = response.data.list
+          if (!isLoadMore) {
+            animes.value = []
+            totalAnimes.value = 0
+          }
+          hasMore.value = false
         }
-        totalAnimes.value = parseInt(response.data.total) || 0
-        hasMore.value = animes.value.length < totalAnimes.value
       } else {
         console.error('API返回错误或数据为空:', response.data)
         if (!isLoadMore) {
-          loadFallbackData(typeId)
+          animes.value = []
+          totalAnimes.value = 0
         }
         hasMore.value = false
+        ElMessage.error('获取数据失败')
       }
     } catch (error) {
       console.error('API请求出错:', error)
       if (!isLoadMore) {
-        loadFallbackData(typeId)
+        animes.value = []
+        totalAnimes.value = 0
       }
       hasMore.value = false
+      ElMessage.error('网络请求失败，请稍后重试')
     }
   } catch (error) {
     console.error('获取数据出错:', error)
     if (!isLoadMore) {
-      loadFallbackData()
+      animes.value = []
+      totalAnimes.value = 0
     }
     hasMore.value = false
+    ElMessage.error('获取数据失败，请稍后重试')
   } finally {
     loading.value = false
   }
-}
-
-// 加载备用数据
-const loadFallbackData = (typeId) => {
-  console.log('加载备用数据')
-  ElMessage.warning('API请求失败，显示模拟数据')
-  
-  // 根据类型加载不同的备用数据
-  const typeMap = {
-    60: '国产动漫',
-    57: '欧美动漫',
-    58: '日本动漫',
-    59: '韩国动漫',
-    61: '港台动漫',
-    // 62: '新马泰动漫',
-    63: '其它动漫'
-  }
-  
-  const typeName = typeMap[typeId] || '动漫'
-  
-  // 根据不同类型生成不同的动漫名称示例
-  let animeNames = [];
-  switch(typeId) {
-    case 60: // 国产动漫
-      animeNames = ['吞噬星空', '斗罗剑仙', '沧元图', '武动乾坤', '完美世界', '星辰变', '元尊'];
-      break;
-    case 61: // 欧美动漫
-      animeNames = ['瑞克和莫蒂', '爱，死亡和机器人', '辛普森一家', '海绵宝宝', '马男波杰克'];
-      break;
-    case 62: // 日本动漫
-      animeNames = ['海贼王', '鬼灭之刃', '火影忍者', '进击的巨人', '咒术回战', '间谍过家家'];
-      break;
-    case 63: // 韩国动漫
-      animeNames = ['神之塔', '打工吧魔王大人', '高校之神', '地狱朋友', '巴士车长'];
-      break;
-    default:
-      animeNames = [`${typeName}示例 1`, `${typeName}示例 2`, `${typeName}示例 3`, `${typeName}示例 4`, `${typeName}示例 5`];
-  }
-  
-  // 生成模拟数据
-  animes.value = Array.from({ length: 12 }, (_, i) => {
-    const nameIndex = i % animeNames.length;
-    return {
-      vod_id: `${typeId}${1000 + i}`,
-      vod_name: i < animeNames.length ? animeNames[i] : `${typeName}示例 ${i + 1}`,
-      vod_pic: 'https://img9.doubanio.com/view/photo/s_ratio_poster/public/p2597919467.webp',
-      vod_remarks: '更新至24集',
-      vod_year: '2024',
-      vod_score: '8.5',
-      vod_actor: '配音演员1, 配音演员2',
-      vod_blurb: `这是一部精彩的${typeName}，热血沸腾...`,
-      vod_area: typeId === 60 ? '中国' : (typeId === 62 ? '日本' : '欧美')
-    };
-  });
-  
-  totalAnimes.value = 24;
 }
 
 // 切换动漫类型时重置状态
@@ -500,5 +464,29 @@ onUnmounted(() => {
     padding: 6px 15px;
     font-size: 14px;
   }
+}
+
+/* 添加空状态样式 */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.empty-icon {
+  width: 80px;
+  height: 80px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.empty-text {
+  color: var(--text-color);
+  font-size: 14px;
+  opacity: 0.7;
+  margin: 0;
 }
 </style> 

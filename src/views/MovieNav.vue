@@ -24,10 +24,16 @@
     <div v-else>
       <!-- 总数显示 -->
       <div class="total-count">
-        共 {{ totalMovies }} 部影片
+        共 {{ totalMovies }} 部电影
       </div>
       
-      <div class="movie-grid">
+      <!-- 添加空状态显示 -->
+      <div v-if="movies.length === 0" class="empty-state">
+        <img src="@/assets/empty-box.svg" alt="暂无数据" class="empty-icon">
+        <p class="empty-text">暂无数据</p>
+      </div>
+
+      <div v-else class="movie-grid">
         <div v-for="movie in movies" :key="movie.vod_id" class="movie-card">
           <router-link :to="`/video/detail/${movie.vod_id}`" class="movie-link">
             <div class="movie-poster">
@@ -154,105 +160,51 @@ const fetchMovies = async (isLoadMore = false) => {
         }
       })
       
-      if (response.data && response.data.code === 1 && response.data.list && response.data.list.length > 0) {
-        if (isLoadMore) {
-          movies.value = [...movies.value, ...response.data.list]
+      if (response.data && response.data.code === 1) {
+        if (response.data.list && response.data.list.length > 0) {
+          if (isLoadMore) {
+            movies.value = [...movies.value, ...response.data.list]
+          } else {
+            movies.value = response.data.list
+          }
+          totalMovies.value = parseInt(response.data.total) || 0
+          hasMore.value = movies.value.length < totalMovies.value
         } else {
-          movies.value = response.data.list
+          if (!isLoadMore) {
+            movies.value = []
+            totalMovies.value = 0
+          }
+          hasMore.value = false
         }
-        totalMovies.value = parseInt(response.data.total) || 0
-        hasMore.value = movies.value.length < totalMovies.value
       } else {
         console.error('API返回错误或数据为空:', response.data)
         if (!isLoadMore) {
-          loadFallbackData(typeId)
+          movies.value = []
+          totalMovies.value = 0
         }
         hasMore.value = false
+        ElMessage.error('获取数据失败')
       }
     } catch (error) {
       console.error('API请求出错:', error)
       if (!isLoadMore) {
-        loadFallbackData(typeId)
+        movies.value = []
+        totalMovies.value = 0
       }
       hasMore.value = false
+      ElMessage.error('网络请求失败，请稍后重试')
     }
   } catch (error) {
     console.error('获取数据出错:', error)
     if (!isLoadMore) {
-      loadFallbackData()
+      movies.value = []
+      totalMovies.value = 0
     }
     hasMore.value = false
+    ElMessage.error('获取数据失败，请稍后重试')
   } finally {
     loading.value = false
   }
-}
-
-// 加载备用数据
-const loadFallbackData = (typeId) => {
-  console.log('加载备用数据')
-  ElMessage.warning('API请求失败，显示模拟数据')
-  
-  // 根据类型加载不同的备用数据
-  const typeMap = {
-    6: '剧情片',
-    7: '动作片',
-    8: '冒险片',
-    9: '动画电影',
-    10: '喜剧片',
-    11: '奇幻片',
-    12: '恐怖片',
-    20: '惊悚片',
-    21: '犯罪片',
-    22: '科幻片',
-    23: '悬疑片',
-    24: '爱情片',
-    25: '灾难片'
-  }
-  
-  const typeName = typeMap[typeId] || '电影'
-  
-  // 根据不同类型生成不同的电影名称示例
-  let movieNames = [];
-  switch(typeId) {
-    case 20: // 惊悚片
-      movieNames = ['致命ID', '致命魔术', '恐怖游轮', '闪灵', '禁闭岛'];
-      break;
-    case 21: // 犯罪片
-      movieNames = ['教父', '无间道', '肖申克的救赎', '七宗罪', '低俗小说'];
-      break;
-    case 22: // 科幻片
-      movieNames = ['星际穿越', '黑客帝国', '头号玩家', '2001太空漫游', '银翼杀手'];
-      break;
-    case 23: // 悬疑片
-      movieNames = ['记忆碎片', '致命魔术', '第六感', '沉默的羔羊', '搏击俱乐部'];
-      break;
-    case 24: // 爱情片
-      movieNames = ['泰坦尼克号', '爱乐之城', '初恋这件小事', '恋恋笔记本', '情书'];
-      break;
-    case 25: // 灾难片
-      movieNames = ['后天', '全球风暴', '2012', '龙卷风', '海啸奇迹'];
-      break;
-    default:
-      movieNames = [`${typeName}示例 1`, `${typeName}示例 2`, `${typeName}示例 3`, `${typeName}示例 4`, `${typeName}示例 5`];
-  }
-  
-  // 生成模拟数据
-  movies.value = Array.from({ length: 12 }, (_, i) => {
-    const nameIndex = i % movieNames.length;
-    return {
-      vod_id: `${typeId}${1000 + i}`,
-      vod_name: i < movieNames.length ? movieNames[i] : `${typeName}示例 ${i + 1}`,
-      vod_pic: 'https://img9.doubanio.com/view/photo/s_ratio_poster/public/p2897209078.webp',
-      vod_remarks: '',
-      vod_year: '2024',
-      vod_score: '8.0',
-      vod_actor: '示例演员1, 示例演员2',
-      vod_blurb: `这是一部精彩的${typeName}，剧情扣人心弦...`,
-      vod_area: '欧美'
-    };
-  });
-  
-  totalMovies.value = 24;
 }
 
 // 切换电影类型时重置状态
@@ -519,5 +471,29 @@ onUnmounted(() => {
     padding: 6px 15px;
     font-size: 14px;
   }
+}
+
+/* 添加空状态样式 */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.empty-icon {
+  width: 80px;
+  height: 80px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.empty-text {
+  color: var(--text-color);
+  font-size: 14px;
+  opacity: 0.7;
+  margin: 0;
 }
 </style> 

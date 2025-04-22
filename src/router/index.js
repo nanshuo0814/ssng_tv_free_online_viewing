@@ -18,7 +18,7 @@ const routes = [
   {
     path: '/tv',
     name: 'TV',
-    component: () => import('@/views/TV.vue'),
+    component: () => import('@/views/TVNav.vue'),
     props: { type: 'tv' }
   },
   {

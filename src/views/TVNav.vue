@@ -29,7 +29,13 @@
         共 {{ totalMovies }} 部电视剧
       </div>
       
-      <div class="movie-grid">
+      <!-- 添加空状态显示 -->
+      <div v-if="movies.length === 0" class="empty-state">
+        <img src="@/assets/empty-box.svg" alt="暂无数据" class="empty-icon">
+        <p class="empty-text">暂无数据</p>
+      </div>
+
+      <div v-else class="movie-grid">
         <div v-for="movie in displayMovies" :key="movie.vod_id" class="movie-card">
           <router-link :to="`/video/detail/${movie.vod_id}`" class="movie-link">
           <div class="movie-poster">
@@ -231,17 +237,18 @@ const fetchMovies = async (isLoadMore = false) => {
     }
     
     console.log(`正在加载类型ID: ${typeId} 的数据，页码: ${currentPage.value}`)
-    try {
-      const response = await axios.get(`/api/api.php/provide/vod/`, {
-        params: {
-          ac: 'videolist',
-          pg: currentPage.value,
-          t: typeId,
-          pagesize: pageSize.value,
-        }
-      })
-      
-      if (response.data && response.data.code === 1 && response.data.list && response.data.list.length > 0) {
+    
+    const response = await axios.get(`/api/api.php/provide/vod/`, {
+      params: {
+        ac: 'videolist',
+        pg: currentPage.value,
+        t: typeId,
+        pagesize: pageSize.value,
+      }
+    })
+    
+    if (response.data && response.data.code === 1) {
+      if (response.data.list && response.data.list.length > 0) {
         if (isLoadMore) {
           movies.value = [...movies.value, ...response.data.list]
         } else {
@@ -250,99 +257,28 @@ const fetchMovies = async (isLoadMore = false) => {
         totalMovies.value = parseInt(response.data.total) || 0
         hasMore.value = movies.value.length < totalMovies.value
       } else {
-        console.error('API返回错误或数据为空:', response.data)
-        if (!isLoadMore) {
-          loadFallbackData(typeId)
-        }
         hasMore.value = false
+        if (!isLoadMore) {
+          movies.value = []
+          totalMovies.value = 0
+        }
       }
-    } catch (error) {
-      console.error('API请求出错:', error)
-      if (!isLoadMore) {
-        loadFallbackData(typeId)
-      }
-      hasMore.value = false
+    } else {
+      throw new Error('API返回数据格式错误')
     }
   } catch (error) {
-    console.error('获取数据出错:', error)
+    console.error('获取电视剧数据失败:', error)
+    ElMessage.error('获取数据失败，请稍后重试')
     if (!isLoadMore) {
-      loadFallbackData()
+      movies.value = []
+      totalMovies.value = 0
     }
     hasMore.value = false
   } finally {
-    loading.value = false
+    if (!isLoadMore) {
+      loading.value = false
+    }
   }
-}
-
-// 加载备用数据
-const loadFallbackData = (typeId) => {
-  console.log('加载备用数据')
-  ElMessage.warning('API请求失败，显示模拟数据')
-  
-  // 根据类型加载不同的备用数据
-  if (typeId >= 13 && typeId <= 21) { // 电视剧类型
-    // 使用截图中的一些电视剧名称
-    movies.value = [
-      { 
-        vod_id: '1001', 
-        vod_name: '借命而生', 
-        vod_pic: 'https://img9.doubanio.com/view/photo/s_ratio_poster/public/p2872088683.webp', 
-        vod_remarks: '更新至8集' 
-      },
-      { 
-        vod_id: '1002', 
-        vod_name: '千秋令', 
-        vod_pic: 'https://img9.doubanio.com/view/photo/s_ratio_poster/public/p2892412130.webp', 
-        vod_remarks: '更新至24集' 
-      },
-      { 
-        vod_id: '1003', 
-        vod_name: '无忧渡', 
-        vod_pic: 'https://img9.doubanio.com/view/photo/s_ratio_poster/public/p2892055553.webp', 
-        vod_remarks: '更新至24集' 
-      },
-      { 
-        vod_id: '1004', 
-        vod_name: '吃饭跑步和恋爱', 
-        vod_pic: 'https://img9.doubanio.com/view/photo/s_ratio_poster/public/p2896546624.webp', 
-        vod_remarks: '更新至23集' 
-      },
-      { 
-        vod_id: '1005', 
-        vod_name: '麻衣神婆', 
-        vod_pic: 'https://img9.doubanio.com/view/photo/s_ratio_poster/public/p2897209078.webp', 
-        vod_remarks: '更新至12集' 
-      },
-      { 
-        vod_id: '1006', 
-        vod_name: '权宠', 
-        vod_pic: 'https://img9.doubanio.com/view/photo/s_ratio_poster/public/p2903099161.webp', 
-        vod_remarks: '更新至13集' 
-      },
-      { 
-        vod_id: '1007', 
-        vod_name: '她的机器亦', 
-        vod_pic: 'https://img9.doubanio.com/view/photo/s_ratio_poster/public/p2900018993.webp', 
-        vod_remarks: '更新至20集' 
-      },
-      { 
-        vod_id: '1008', 
-        vod_name: '走火', 
-        vod_pic: 'https://img9.doubanio.com/view/photo/s_ratio_poster/public/p2899635076.webp', 
-        vod_remarks: '更新至23集' 
-      }
-    ]
-  } else {
-    // 其他类型的备用数据
-    movies.value = Array.from({ length: 12 }, (_, i) => ({
-      vod_id: `${2000 + i}`,
-      vod_name: `示例内容 ${i + 1}`,
-      vod_pic: `https://img9.doubanio.com/view/photo/s_ratio_poster/public/p${2872088680 + i}.webp`,
-      vod_remarks: `示例 ${i + 1}`
-    }))
-  }
-  
-  totalMovies.value = movies.value.length
 }
 
 // 切换剧集类型时重置状态
@@ -661,5 +597,29 @@ const truncateText = (text, maxLength) => {
     padding: 6px 15px;
     font-size: 13px;
   }
+}
+
+/* 添加空状态样式 */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.empty-icon {
+  width: 80px;
+  height: 80px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.empty-text {
+  color: var(--text-color);
+  font-size: 14px;
+  opacity: 0.7;
+  margin: 0;
 }
 </style> 

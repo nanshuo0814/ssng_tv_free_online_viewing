@@ -27,7 +27,13 @@
         共 {{ totalDramas }} 部短剧
       </div>
       
-      <div class="drama-grid">
+      <!-- 添加空状态显示 -->
+      <div v-if="dramas.length === 0" class="empty-state">
+        <img src="@/assets/empty-box.svg" alt="暂无数据" class="empty-icon">
+        <p class="empty-text">暂无数据</p>
+      </div>
+
+      <div v-else class="drama-grid">
         <div v-for="drama in dramas" :key="drama.vod_id" class="drama-card">
           <router-link :to="`/video/detail/${drama.vod_id}`" class="drama-link">
             <div class="drama-poster">
@@ -95,7 +101,7 @@ const dramaTypes = [
   { id: 52, name: '穿越短剧' },
   { id: 53, name: '甜宠短剧' },
   { id: 54, name: '强者短剧' },
-  { id: 55, name: '萌宝短剧' },
+  // { id: 55, name: '萌宝短剧' },
   { id: 56, name: '其它短剧' }
 ]
 
@@ -152,101 +158,47 @@ const fetchDramas = async (isLoadMore = false) => {
         }
       })
       
-      if (response.data && response.data.code === 1 && response.data.list && response.data.list.length > 0) {
-        if (isLoadMore) {
-          dramas.value = [...dramas.value, ...response.data.list]
+      if (response.data && response.data.code === 1) {
+        if (response.data.list && response.data.list.length > 0) {
+          if (isLoadMore) {
+            dramas.value = [...dramas.value, ...response.data.list]
+          } else {
+            dramas.value = response.data.list
+          }
+          totalDramas.value = parseInt(response.data.total) || 0
+          hasMore.value = dramas.value.length < totalDramas.value
         } else {
-          dramas.value = response.data.list
+          if (!isLoadMore) {
+            dramas.value = []
+            totalDramas.value = 0
+          }
+          hasMore.value = false
         }
-        totalDramas.value = parseInt(response.data.total) || 0
-        hasMore.value = dramas.value.length < totalDramas.value
       } else {
         console.error('API返回错误或数据为空:', response.data)
         if (!isLoadMore) {
-          loadFallbackData(typeId)
+          dramas.value = []
+          totalDramas.value = 0
         }
         hasMore.value = false
+        ElMessage.error('获取数据失败')
       }
     } catch (error) {
       console.error('API请求出错:', error)
       if (!isLoadMore) {
-        loadFallbackData(typeId)
+        dramas.value = []
+        totalDramas.value = 0
       }
       hasMore.value = false
+      ElMessage.error('网络请求失败，请稍后重试')
     }
   } catch (error) {
     console.error('获取数据出错:', error)
-    if (!isLoadMore) {
-      loadFallbackData()
-    }
+    ElMessage.error('获取数据失败，请稍后重试')
     hasMore.value = false
   } finally {
     loading.value = false
   }
-}
-
-// 加载备用数据
-const loadFallbackData = (typeId) => {
-  console.log('加载备用数据')
-  ElMessage.warning('API请求失败，显示模拟数据')
-  
-  // 根据类型加载不同的备用数据
-  const typeMap = {
-    47: '逆袭短剧',
-    45: '古装短剧',
-    46: '虐恋短剧',
-    48: '悬疑短剧',
-    49: '神豪短剧',
-    50: '重生短剧',
-    51: '复仇短剧',
-    52: '穿越短剧',
-    53: '甜宠短剧',
-    54: '强者短剧',
-    55: '萌宝短剧',
-    56: '其它短剧'
-  }
-  
-  const typeName = typeMap[typeId] || '短剧'
-  
-  // 根据不同类型生成不同的短剧名称示例
-  let dramaNames = [];
-  switch(typeId) {
-    case 47: // 逆袭短剧
-      dramaNames = ['白月光退场真命天女登场', '从倒霉蛋到霸道总裁', '丑女逆袭成女神', '小人物逆袭记', '农村小子逆袭'];
-      break;
-    case 48: // 古装短剧
-      dramaNames = ['长公主的反派女婿', '庶女心计', '王爷的掌心宠', '宫廷秘史', '朝堂风云'];
-      break;
-    case 50: // 悬疑短剧
-      dramaNames = ['夜光破雾是清晨', '大器早成', '探案迷踪', '代号追凶', '人生岔路口'];
-      break;
-    case 51: // 神豪短剧
-      dramaNames = ['败家子富少', '百亿继承人', '神秘富豪', '豪门继承人', '亿万富翁'];
-      break;
-    case 55: // 甜宠短剧
-      dramaNames = ['姐姐！你命呀', '我的霸道总裁', '霸总的小甜妻', '总裁宠上天', '契约婚姻'];
-      break;
-    default:
-      dramaNames = [`${typeName}示例 1`, `${typeName}示例 2`, `${typeName}示例 3`, `${typeName}示例 4`, `${typeName}示例 5`];
-  }
-  
-  // 生成模拟数据
-  dramas.value = Array.from({ length: 12 }, (_, i) => {
-    const nameIndex = i % dramaNames.length;
-    return {
-      vod_id: `${typeId}${1000 + i}`,
-      vod_name: i < dramaNames.length ? dramaNames[i] : `${typeName}示例 ${i + 1}`,
-      vod_pic: 'https://assets.heimuer.tv/imgs/2025/04/21/5a38719da346419b8f55d5d7b6013c86.jpg',
-      vod_remarks: '全80集',
-      vod_year: '2024',
-      vod_score: '8.0',
-      vod_actor: '演员1, 演员2, 演员3',
-      vod_blurb: `这是一部精彩的${typeName}，剧情扣人心弦...`,
-      vod_area: '大陆'
-    };
-  });
-  
-  totalDramas.value = 24;
 }
 
 // 切换短剧类型时重置状态
@@ -513,5 +465,29 @@ onUnmounted(() => {
     padding: 6px 15px;
     font-size: 14px;
   }
+}
+
+/* 添加空状态样式 */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.empty-icon {
+  width: 80px;
+  height: 80px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.empty-text {
+  color: var(--text-color);
+  font-size: 14px;
+  opacity: 0.7;
+  margin: 0;
 }
 </style> 

@@ -27,7 +27,13 @@
         共 {{ totalVarieties }} 部综艺
       </div>
       
-      <div class="variety-grid">
+      <!-- 添加空状态显示 -->
+      <div v-if="varieties.length === 0" class="empty-state">
+        <img src="@/assets/empty-box.svg" alt="暂无数据" class="empty-icon">
+        <p class="empty-text">暂无数据</p>
+      </div>
+
+      <div v-else class="variety-grid">
         <div v-for="variety in varieties" :key="variety.vod_id" class="variety-card">
           <router-link :to="`/video/detail/${variety.vod_id}`" class="variety-link">
             <div class="variety-poster">
@@ -148,93 +154,47 @@ const fetchVarieties = async (isLoadMore = false) => {
         }
       })
       
-      if (response.data && response.data.code === 1 && response.data.list && response.data.list.length > 0) {
-        if (isLoadMore) {
-          varieties.value = [...varieties.value, ...response.data.list]
+      if (response.data && response.data.code === 1) {
+        if (response.data.list && response.data.list.length > 0) {
+          if (isLoadMore) {
+            varieties.value = [...varieties.value, ...response.data.list]
+          } else {
+            varieties.value = response.data.list
+          }
+          totalVarieties.value = parseInt(response.data.total) || 0
+          hasMore.value = varieties.value.length < totalVarieties.value
         } else {
-          varieties.value = response.data.list
+          if (!isLoadMore) {
+            varieties.value = []
+            totalVarieties.value = 0
+          }
+          hasMore.value = false
         }
-        totalVarieties.value = parseInt(response.data.total) || 0
-        hasMore.value = varieties.value.length < totalVarieties.value
       } else {
         console.error('API返回错误或数据为空:', response.data)
         if (!isLoadMore) {
-          loadFallbackData(typeId)
+          varieties.value = []
+          totalVarieties.value = 0
         }
         hasMore.value = false
+        ElMessage.error('获取数据失败')
       }
     } catch (error) {
       console.error('API请求出错:', error)
       if (!isLoadMore) {
-        loadFallbackData(typeId)
+        varieties.value = []
+        totalVarieties.value = 0
       }
       hasMore.value = false
+      ElMessage.error('网络请求失败，请稍后重试')
     }
   } catch (error) {
     console.error('获取数据出错:', error)
-    if (!isLoadMore) {
-      loadFallbackData()
-    }
+    ElMessage.error('获取数据失败，请稍后重试')
     hasMore.value = false
   } finally {
     loading.value = false
   }
-}
-
-// 加载备用数据
-const loadFallbackData = (typeId) => {
-  console.log('加载备用数据')
-  ElMessage.warning('API请求失败，显示模拟数据')
-  
-  // 根据类型加载不同的备用数据
-  const typeMap = {
-    38: '国产综艺',
-    39: '港台综艺',
-    40: '韩国综艺',
-    41: '日本综艺',
-    42: '欧美综艺',
-    43: '新马泰综艺',
-    44: '其它综艺'
-  }
-  
-  const typeName = typeMap[typeId] || '综艺'
-  
-  // 根据不同类型生成不同的综艺名称示例
-  let varietyNames = [];
-  switch(typeId) {
-    case 30: // 国产综艺
-      varietyNames = ['无限超越班 第三季', '你好星期六', '天赐的声音 第六季', '哈哈哈哈哈 第五季', '半熟恋人 第四季', '千雪汪', '乐在旅途第2季', '盒子里的猫 第一季', '妻子的浪漫旅行 第七季'];
-      break;
-    case 31: // 港台综艺
-      varietyNames = ['综艺玩很大', '全民星攻略', '台湾那么旅行', '小姐不熙娣', '医师好辣', '娱乐百分百', 'WTO姐妹会'];
-      break;
-    case 32: // 日韩综艺
-      varietyNames = ['Running Man', '认识的哥哥', '家师父一体', '恋爱的参考书', '两天一夜', '惊人的星期六', '全知干预视角'];
-      break;
-    case 33: // 欧美综艺
-      varietyNames = ['厨艺大师', '超级歌手', '全美达人秀', '与卡戴珊同行', '真正的厨师', '极速前进', '夜间脱口秀'];
-      break;
-    default:
-      varietyNames = [`${typeName}示例 1`, `${typeName}示例 2`, `${typeName}示例 3`, `${typeName}示例 4`, `${typeName}示例 5`];
-  }
-  
-  // 生成模拟数据
-  varieties.value = Array.from({ length: 12 }, (_, i) => {
-    const nameIndex = i % varietyNames.length;
-    return {
-      vod_id: `${typeId}${1000 + i}`,
-      vod_name: i < varietyNames.length ? varietyNames[i] : `${typeName}示例 ${i + 1}`,
-      vod_pic: 'https://assets.heimuer.tv/imgs/2025/04/21/5a38719da346419b8f55d5d7b6013c86.jpg',
-      vod_remarks: '更新至20期',
-      vod_year: '2024',
-      vod_score: '9.0',
-      vod_actor: '主持人1, 主持人2, 嘉宾1, 嘉宾2',
-      vod_blurb: `这是一档精彩的${typeName}，笑点不断...`,
-      vod_area: typeId === 30 ? '大陆' : (typeId === 31 ? '港台' : (typeId === 32 ? '日韩' : '欧美'))
-    };
-  });
-  
-  totalVarieties.value = 24;
 }
 
 // 切换综艺类型时重置状态
@@ -501,5 +461,29 @@ onUnmounted(() => {
     padding: 6px 15px;
     font-size: 14px;
   }
+}
+
+/* 添加空状态样式 */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.empty-icon {
+  width: 80px;
+  height: 80px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.empty-text {
+  color: var(--text-color);
+  font-size: 14px;
+  opacity: 0.7;
+  margin: 0;
 }
 </style> 
