@@ -23,57 +23,56 @@
     </div>
 
     <!-- 电影/剧集网格 -->
-    <div v-else class="movie-grid">
-      <div v-for="movie in displayMovies" :key="movie.vod_id" class="movie-card">
-        <router-link :to="`/video/detail/${movie.vod_id}`" class="movie-link">
-        <div class="movie-poster">
-            <img 
-              :src="getImageUrl(movie.vod_pic)" 
-              :alt="movie.vod_name"
-              @error="handleImageError($event)"
-            >
-            <!-- 显示集数标签 -->
-            <div v-if="movie.vod_remarks" class="episode-badge">
-              {{ movie.vod_remarks }}
-            </div>
-            
-            <!-- 新增：影片详情悬浮层 -->
-            <div class="movie-detail-overlay">
-              <h4 class="detail-title">{{ movie.vod_name }}</h4>
-              <div v-if="movie.vod_year" class="detail-meta">{{ movie.vod_year }}</div>
-              <div v-if="movie.vod_score" class="detail-score">评分: {{ movie.vod_score }}</div>
-              <div v-if="movie.vod_actor" class="detail-actors">
-                {{ truncateText(movie.vod_actor, 30) }}
-              </div>
-              <div v-if="movie.vod_content" class="detail-desc">
-                {{ truncateText(movie.vod_content, 50) }}
-              </div>
-            </div>
-        </div>
-        <div class="movie-info">
-            <h3 class="movie-title">{{ movie.vod_name }}</h3>
-        </div>
-        </router-link>
+    <div v-else>
+      <!-- 总数显示 -->
+      <div class="total-count">
+        共 {{ totalMovies }} 部电视剧
       </div>
-    </div>
+      
+      <div class="movie-grid">
+        <div v-for="movie in displayMovies" :key="movie.vod_id" class="movie-card">
+          <router-link :to="`/video/detail/${movie.vod_id}`" class="movie-link">
+          <div class="movie-poster">
+              <img 
+                :src="getImageUrl(movie.vod_pic)" 
+                :alt="movie.vod_name"
+                @error="handleImageError($event)"
+              >
+              <!-- 显示集数标签 -->
+              <div v-if="movie.vod_remarks" class="episode-badge">
+                {{ movie.vod_remarks }}
+              </div>
+              
+              <!-- 新增：影片详情悬浮层 -->
+              <div class="movie-detail-overlay">
+                <h4 class="detail-title">{{ movie.vod_name }}</h4>
+                <div v-if="movie.vod_year" class="detail-meta">{{ movie.vod_year }}</div>
+                <div v-if="movie.vod_score" class="detail-score">评分: {{ movie.vod_score }}</div>
+                <div v-if="movie.vod_actor" class="detail-actors">
+                  {{ truncateText(movie.vod_actor, 30) }}
+                </div>
+                <div v-if="movie.vod_content" class="detail-desc">
+                  {{ truncateText(movie.vod_content, 50) }}
+                </div>
+              </div>
+          </div>
+          <div class="movie-info">
+              <h3 class="movie-title">{{ movie.vod_name }}</h3>
+          </div>
+          </router-link>
+        </div>
+      </div>
 
-    <!-- 分页 -->
-    <div class="pagination-container">
-      <el-pagination
-        v-model:current-page="currentPage"
-        :page-size="pageSize"
-        :total="totalMovies"
-        layout="total, prev, pager, next"
-        @current-change="handlePageChange"
-        :background="true"
-        class="pagination-dark"
-      />
+      <!-- 加载更多提示 -->
+      <div v-if="loading" class="loading-more">
+        <el-skeleton :rows="1" animated />
+      </div>
     </div>
   <!-- </div> -->
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useFavoriteStore } from '@/stores/favorite'
 import { useThemeStore } from '../stores/theme'
@@ -189,10 +188,36 @@ const displayMovies = computed(() => {
   return result
 })
 
-// 加载影视数据
-const fetchMovies = async () => {
+// 添加是否正在加载更多的标志
+const loadingMore = ref(false)
+const hasMore = ref(true)
+
+// 监听滚动事件
+const handleScroll = async () => {
+  // 如果正在加载或没有更多数据，则不处理
+  if (loadingMore.value || !hasMore.value) return
+  
+  const scrollHeight = document.documentElement.scrollHeight
+  const scrollTop = document.documentElement.scrollTop
+  const clientHeight = document.documentElement.clientHeight
+  
+  // 当滚动到距离底部100px时加载更多
+  if (scrollHeight - scrollTop - clientHeight < 100) {
+    currentPage.value++
+    loadingMore.value = true
+    await fetchMovies(true) // 传入true表示是加载更多
+    loadingMore.value = false
+  }
+}
+
+// 修改加载电视剧数据的方法
+const fetchMovies = async (isLoadMore = false) => {
   try {
-    loading.value = true
+    if (!isLoadMore) {
+      loading.value = true
+      movies.value = []
+    }
+    
     const typeId = currentTypeId.value
     
     if (!typeId) {
@@ -204,10 +229,9 @@ const fetchMovies = async () => {
     
     console.log(`正在加载类型ID: ${typeId} 的数据，页码: ${currentPage.value}`)
     try {
-      // 尝试使用不同的API接口获取数据
       const response = await axios.get(`/api/api.php/provide/vod/`, {
         params: {
-          ac: 'videolist',  // 尝试使用videolist接口
+          ac: 'videolist',
           pg: currentPage.value,
           t: typeId,
           pagesize: pageSize.value,
@@ -215,56 +239,35 @@ const fetchMovies = async () => {
       })
       
       if (response.data && response.data.code === 1 && response.data.list && response.data.list.length > 0) {
-        console.log(`成功获取数据，共 ${response.data.list?.length || 0} 条记录，总数 ${response.data.total || 0}`)
-        // 过滤掉没有海报的影片
-        movies.value = response.data.list.filter(movie => movie.vod_pic && movie.vod_pic !== '')
-        totalMovies.value = parseInt(response.data.total) || 0
-        
-        // 输出获取到的第一条数据以供调试
-        if (movies.value.length > 0) {
-          console.log('第一条影片数据示例:', JSON.stringify(movies.value[0]))
+        if (isLoadMore) {
+          movies.value = [...movies.value, ...response.data.list]
+        } else {
+          movies.value = response.data.list
         }
+        totalMovies.value = parseInt(response.data.total) || 0
+        hasMore.value = movies.value.length < totalMovies.value
       } else {
         console.error('API返回错误或数据为空:', response.data)
-        // 如果videolist接口失败，尝试使用list接口
-        tryFallbackApi(typeId)
+        if (!isLoadMore) {
+          loadFallbackData(typeId)
+        }
+        hasMore.value = false
       }
     } catch (error) {
       console.error('API请求出错:', error)
-      tryFallbackApi(typeId)
+      if (!isLoadMore) {
+        loadFallbackData(typeId)
+      }
+      hasMore.value = false
     }
   } catch (error) {
     console.error('获取数据出错:', error)
-    loadFallbackData()
+    if (!isLoadMore) {
+      loadFallbackData()
+    }
+    hasMore.value = false
   } finally {
     loading.value = false
-  }
-}
-
-// 尝试使用备用API
-const tryFallbackApi = async (typeId) => {
-  try {
-    const response = await axios.get(`/api/api.php/provide/vod/`, {
-      params: {
-        ac: 'list',  // 尝试使用list接口
-        pg: currentPage.value,
-        t: typeId,
-        pagesize: pageSize.value,
-      }
-    })
-    
-    if (response.data && response.data.code === 1 && response.data.list && response.data.list.length > 0) {
-      console.log(`备用API成功获取数据，共 ${response.data.list?.length || 0} 条记录`)
-      // 过滤掉没有海报的影片
-      movies.value = response.data.list.filter(movie => movie.vod_pic && movie.vod_pic !== '')
-      totalMovies.value = parseInt(response.data.total) || 0
-    } else {
-      console.error('备用API也失败:', response.data)
-      loadFallbackData(typeId)
-    }
-  } catch (error) {
-    console.error('备用API请求出错:', error)
-    loadFallbackData(typeId)
   }
 }
 
@@ -339,17 +342,12 @@ const loadFallbackData = (typeId) => {
   totalMovies.value = movies.value.length
 }
 
-// 处理页码变化
-const handlePageChange = (page) => {
-  currentPage.value = page
-  window.scrollTo(0, 0)
-  fetchMovies()
-}
-
-// 选择剧集类型
+// 切换剧集类型时重置状态
 const selectDramaType = (type) => {
   dramaType.value = type
   currentPage.value = 1
+  hasMore.value = true
+  window.scrollTo(0, 0)
   fetchMovies()
 }
 
@@ -384,9 +382,15 @@ watch([currentType, currentTypeId], () => {
   fetchMovies()
 }, { immediate: true })
 
-// 页面加载时获取数据
+// 组件挂载时添加滚动监听
 onMounted(() => {
   fetchMovies()
+  window.addEventListener('scroll', handleScroll)
+})
+
+// 组件卸载时移除滚动监听
+onUnmounted(() => {
+  window.removeEventListener('scroll', handleScroll)
 })
 
 // 处理图片URL
@@ -450,7 +454,7 @@ const truncateText = (text, maxLength) => {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  margin-bottom: 10px;
+  /* margin-bottom: 0px; */
   padding-bottom: 10px;
   overflow-x: auto;
 }
@@ -597,32 +601,23 @@ const truncateText = (text, maxLength) => {
   text-align: center;
 }
 
-.pagination-container {
-  display: flex;
-  justify-content: center;
-  margin-top: 20px;
-  padding: 10px 0 20px;
-}
-
-/* 分页暗黑模式样式 */
-:deep(.pagination-dark .el-pagination.is-background .el-pager li:not(.is-disabled)) {
-  background-color: var(--hover-background);
+/* 移除分页相关样式 */
+.total-count {
+  text-align: center;
   color: var(--text-color);
+  margin: 0 0 10px 0;
+  font-size: 14px;
 }
 
-:deep(.pagination-dark .el-pagination.is-background .el-pager li:not(.is-disabled).is-active) {
-  background-color: #8e44ad; /* 紫色背景 */
-  color: white;
+.loading-more {
+  padding: 20px;
+  text-align: center;
 }
 
-:deep(.pagination-dark .el-pagination.is-background .btn-prev),
-:deep(.pagination-dark .el-pagination.is-background .btn-next) {
-  background-color: var(--hover-background);
-  color: var(--text-color);
-}
-
-:deep(.pagination-dark .el-pagination .el-pagination__total) {
-  color: var(--text-color);
+/* 移除旧的分页样式 */
+.pagination-container,
+:deep(.pagination-dark) {
+  display: none;
 }
 
 @media (max-width: 768px) {

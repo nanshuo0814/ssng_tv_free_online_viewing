@@ -1,5 +1,5 @@
 <template>
-  <div class="movie-nav">
+  <!-- <div class="movie-nav"> -->
     <h2 style="margin-bottom: 0px;
   padding: 15px 15px 5px;">电影</h2>
     <!-- 电影类型导航栏 -->
@@ -21,57 +21,56 @@
     </div>
 
     <!-- 电影列表 -->
-    <div v-else class="movie-grid">
-      <div v-for="movie in movies" :key="movie.vod_id" class="movie-card">
-        <router-link :to="`/video/detail/${movie.vod_id}`" class="movie-link">
-          <div class="movie-poster">
-            <img 
-              :src="getImageUrl(movie.vod_pic)" 
-              :alt="movie.vod_name"
-              @error="handleImageError($event)"
-            >
-            <!-- 显示标签 -->
-            <div v-if="movie.vod_remarks" class="movie-badge">
-              {{ movie.vod_remarks }}
-            </div>
-            
-            <!-- 影片详情悬浮层 -->
-            <div class="movie-detail-overlay">
-              <h4 class="detail-title">{{ movie.vod_name }}</h4>
-              <div v-if="movie.vod_year" class="detail-meta">{{ movie.vod_year }}</div>
-              <div v-if="movie.vod_score && movie.vod_score !== '0.0'" class="detail-score">评分: {{ movie.vod_score }}</div>
-              <div v-if="movie.vod_actor" class="detail-actors">
-                {{ truncateText(movie.vod_actor, 30) }}
+    <div v-else>
+      <!-- 总数显示 -->
+      <div class="total-count">
+        共 {{ totalMovies }} 部影片
+      </div>
+      
+      <div class="movie-grid">
+        <div v-for="movie in movies" :key="movie.vod_id" class="movie-card">
+          <router-link :to="`/video/detail/${movie.vod_id}`" class="movie-link">
+            <div class="movie-poster">
+              <img 
+                :src="getImageUrl(movie.vod_pic)" 
+                :alt="movie.vod_name"
+                @error="handleImageError($event)"
+              >
+              <!-- 显示标签 -->
+              <div v-if="movie.vod_remarks" class="movie-badge">
+                {{ movie.vod_remarks }}
               </div>
-              <div v-if="movie.vod_blurb || movie.vod_content" class="detail-desc">
-                {{ truncateText(movie.vod_blurb || movie.vod_content, 50) }}
+              
+              <!-- 影片详情悬浮层 -->
+              <div class="movie-detail-overlay">
+                <h4 class="detail-title">{{ movie.vod_name }}</h4>
+                <div v-if="movie.vod_year" class="detail-meta">{{ movie.vod_year }}</div>
+                <div v-if="movie.vod_score && movie.vod_score !== '0.0'" class="detail-score">评分: {{ movie.vod_score }}</div>
+                <div v-if="movie.vod_actor" class="detail-actors">
+                  {{ truncateText(movie.vod_actor, 30) }}
+                </div>
+                <div v-if="movie.vod_blurb || movie.vod_content" class="detail-desc">
+                  {{ truncateText(movie.vod_blurb || movie.vod_content, 50) }}
+                </div>
               </div>
             </div>
-          </div>
-          <div class="movie-info">
-            <h3 class="movie-title">{{ movie.vod_name }}</h3>
-          </div>
-        </router-link>
+            <div class="movie-info">
+              <h3 class="movie-title">{{ movie.vod_name }}</h3>
+            </div>
+          </router-link>
+        </div>
+      </div>
+
+      <!-- 加载更多提示 -->
+      <div v-if="loading" class="loading-more">
+        <el-skeleton :rows="1" animated />
       </div>
     </div>
-
-    <!-- 分页 -->
-    <div class="pagination-container">
-      <el-pagination
-        v-model:current-page="currentPage"
-        :page-size="pageSize"
-        :total="totalMovies"
-        layout="total, prev, pager, next"
-        @current-change="handlePageChange"
-        :background="true"
-        class="pagination-dark"
-      />
-    </div>
-  </div>
+  <!-- </div> -->
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import axios from 'axios'
 import { useThemeStore } from '../stores/theme'
@@ -105,15 +104,40 @@ const pageSize = ref(24)
 const totalMovies = ref(0)
 const currentType = ref(6) // 默认剧情片
 
-// 加载电影数据
-const fetchMovies = async () => {
+// 添加是否正在加载更多的标志
+const loadingMore = ref(false)
+const hasMore = ref(true)
+
+// 监听滚动事件
+const handleScroll = async () => {
+  // 如果正在加载或没有更多数据，则不处理
+  if (loadingMore.value || !hasMore.value) return
+  
+  const scrollHeight = document.documentElement.scrollHeight
+  const scrollTop = document.documentElement.scrollTop
+  const clientHeight = document.documentElement.clientHeight
+  
+  // 当滚动到距离底部100px时加载更多
+  if (scrollHeight - scrollTop - clientHeight < 100) {
+    currentPage.value++
+    loadingMore.value = true
+    await fetchMovies(true) // 传入true表示是加载更多
+    loadingMore.value = false
+  }
+}
+
+// 修改加载电影数据的方法
+const fetchMovies = async (isLoadMore = false) => {
   try {
-    loading.value = true
-    const typeId = currentType.value
+    if (!isLoadMore) {
+      loading.value = true
+      movies.value = []
+    }
     
+    const typeId = currentType.value
     console.log(`正在加载类型ID: ${typeId} 的数据，页码: ${currentPage.value}`)
+    
     try {
-      // 使用API获取数据
       const response = await axios.get(`/api/api.php/provide/vod/`, {
         params: {
           ac: 'videolist',
@@ -124,25 +148,33 @@ const fetchMovies = async () => {
       })
       
       if (response.data && response.data.code === 1 && response.data.list && response.data.list.length > 0) {
-        console.log(`成功获取数据，共 ${response.data.list?.length || 0} 条记录，总数 ${response.data.total || 0}`)
-        movies.value = response.data.list
-        totalMovies.value = parseInt(response.data.total) || 0
-        
-        // 输出获取到的第一条数据以供调试
-        if (movies.value.length > 0) {
-          console.log('第一条影片数据示例:', JSON.stringify(movies.value[0]))
+        if (isLoadMore) {
+          movies.value = [...movies.value, ...response.data.list]
+        } else {
+          movies.value = response.data.list
         }
+        totalMovies.value = parseInt(response.data.total) || 0
+        hasMore.value = movies.value.length < totalMovies.value
       } else {
         console.error('API返回错误或数据为空:', response.data)
-        loadFallbackData(typeId)
+        if (!isLoadMore) {
+          loadFallbackData(typeId)
+        }
+        hasMore.value = false
       }
     } catch (error) {
       console.error('API请求出错:', error)
-      loadFallbackData(typeId)
+      if (!isLoadMore) {
+        loadFallbackData(typeId)
+      }
+      hasMore.value = false
     }
   } catch (error) {
     console.error('获取数据出错:', error)
-    loadFallbackData()
+    if (!isLoadMore) {
+      loadFallbackData()
+    }
+    hasMore.value = false
   } finally {
     loading.value = false
   }
@@ -216,17 +248,12 @@ const loadFallbackData = (typeId) => {
   totalMovies.value = 24;
 }
 
-// 处理页码变化
-const handlePageChange = (page) => {
-  currentPage.value = page
-  window.scrollTo(0, 0)
-  fetchMovies()
-}
-
-// 切换电影类型
+// 切换电影类型时重置状态
 const changeType = (typeId) => {
   currentType.value = typeId
   currentPage.value = 1
+  hasMore.value = true
+  window.scrollTo(0, 0)
   fetchMovies()
 }
 
@@ -260,9 +287,15 @@ const truncateText = (text, maxLength) => {
   return text.length > maxLength ? text.slice(0, maxLength) + '...' : text;
 }
 
-// 页面加载时获取数据
+// 组件挂载时添加滚动监听
 onMounted(() => {
   fetchMovies()
+  window.addEventListener('scroll', handleScroll)
+})
+
+// 组件卸载时移除滚动监听
+onUnmounted(() => {
+  window.removeEventListener('scroll', handleScroll)
 })
 </script>
 
@@ -422,32 +455,23 @@ onMounted(() => {
   text-align: center;
 }
 
-.pagination-container {
-  display: flex;
-  justify-content: center;
-  margin-top: 20px;
-  padding: 10px 0 20px;
-}
-
-/* 分页暗黑模式样式 */
-:deep(.pagination-dark .el-pagination.is-background .el-pager li:not(.is-disabled)) {
-  background-color: var(--hover-background);
+/* 移除分页相关样式 */
+.total-count {
+  text-align: center;
   color: var(--text-color);
+  margin: 20px 0;
+  font-size: 14px;
 }
 
-:deep(.pagination-dark .el-pagination.is-background .el-pager li:not(.is-disabled).is-active) {
-  background-color: #e74c3c; /* 红色背景 */
-  color: white;
+.loading-more {
+  padding: 20px;
+  text-align: center;
 }
 
-:deep(.pagination-dark .el-pagination.is-background .btn-prev),
-:deep(.pagination-dark .el-pagination.is-background .btn-next) {
-  background-color: var(--hover-background);
-  color: var(--text-color);
-}
-
-:deep(.pagination-dark .el-pagination .el-pagination__total) {
-  color: var(--text-color);
+/* 移除旧的分页样式 */
+.pagination-container,
+:deep(.pagination-dark) {
+  display: none;
 }
 
 @media (max-width: 768px) {

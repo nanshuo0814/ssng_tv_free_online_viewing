@@ -1,5 +1,5 @@
 <template>
-  <div class="history-page">
+  <!-- <div class="history-page"> -->
     <div class="history-header">
       <h2>观看历史</h2>
       <el-button 
@@ -65,7 +65,7 @@
         </el-button>
       </div>
     </div>
-  </div>
+  <!-- </div> -->
 </template>
 
 <script setup>

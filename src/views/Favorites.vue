@@ -1,5 +1,5 @@
 <template>
-  <div class="favorites-page">
+  <!-- <div class="favorites-page"> -->
     <div class="favorites-header">
       <h2>我的收藏</h2>
       <el-button 
@@ -65,7 +65,7 @@
         </el-button>
       </div>
     </div>
-  </div>
+  <!-- </div> -->
 </template>
 
 <script setup>
