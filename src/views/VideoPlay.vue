@@ -78,6 +78,7 @@ const loading = ref(true)
 const episodes = ref([])
 const currentEpisode = ref(null)
 const error = ref(null)
+const hlsInstance = ref(null) // 添加 HLS 实例引用
 
 // 计算当前集数名称
 const currentEpisodeName = computed(() => {
@@ -89,6 +90,32 @@ const isCurrentEpisode = (episode) => {
   return episode.url === currentEpisode.value?.url
 }
 
+// 清理播放器资源
+const cleanupPlayer = () => {
+  if (hlsInstance.value) {
+    try {
+      hlsInstance.value.destroy();
+      hlsInstance.value = null;
+    } catch (error) {
+      console.error('销毁 HLS 实例时出错:', error);
+    }
+  }
+  
+  if (player.value) {
+    try {
+      player.value.destroy();
+      player.value = null;
+    } catch (error) {
+      console.error('销毁播放器时出错:', error);
+    }
+  }
+  
+  const container = document.getElementById('dplayer');
+  if (container) {
+    container.innerHTML = '';
+  }
+}
+
 // 初始化播放器
 const initPlayer = (url) => {
   console.log('初始化播放器，URL:', url);
@@ -98,11 +125,8 @@ const initPlayer = (url) => {
     return;
   }
 
-  if (player.value) {
-    console.log('销毁现有播放器');
-    player.value.destroy();
-    player.value = null;
-  }
+  // 清理现有资源
+  cleanupPlayer();
 
   const container = document.getElementById('dplayer');
   if (!container) {
@@ -125,6 +149,7 @@ const initPlayer = (url) => {
           customType: {
             customHls: function (video, player) {
               const hls = new Hls();
+              hlsInstance.value = hls; // 保存 HLS 实例引用
               hls.loadSource(video.src);
               hls.attachMedia(video);
               hls.on(Hls.Events.MANIFEST_PARSED, () => {
@@ -165,7 +190,6 @@ const initPlayer = (url) => {
       player.value = new DPlayer(options);
     } else if (container.canPlayType('application/vnd.apple.mpegurl')) {
       console.log('浏览器原生支持 HLS');
-      // 对于 Safari 等原生支持 HLS 的浏览器
       const options = {
         container,
         video: {
@@ -191,7 +215,7 @@ const initPlayer = (url) => {
     // 监听播放器事件
     player.value.on('error', (error) => {
       console.error('播放器错误:', error);
-      ElMessage.error('视频加载失败，请稍后重试');
+      // ElMessage.error('视频加载失败，请稍后重试');
     });
 
     player.value.on('loadeddata', () => {
@@ -217,6 +241,7 @@ const switchEpisode = (episode) => {
   const { id } = route.params
   router.push(`/play/${id}/${episode.index + 1}/heimuer`)
   currentEpisode.value = episode
+  cleanupPlayer() // 在切换剧集前清理资源
   initPlayer(episode.url)
 }
 
@@ -341,14 +366,13 @@ onMounted(() => {
 
 // 组件销毁时清理
 onBeforeUnmount(() => {
-  if (player.value) {
-    player.value.destroy()
-  }
+  cleanupPlayer()
 })
 
 // 监听路由参数变化
 watch(() => route.params, (newParams) => {
   if (newParams.id && newParams.episode) {
+    cleanupPlayer() // 在路由变化时清理资源
     loadVideoInfo()
   }
 }, { deep: true })
