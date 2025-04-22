@@ -65,6 +65,12 @@ const routes = [
     props: true
   },
   {
+    path: '/play/:id/:episode/:source',
+    name: 'VideoPlay',
+    component: () => import('../views/VideoPlay.vue'),
+    props: true
+  },
+  {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
     component: () => import('@/views/NotFound.vue')

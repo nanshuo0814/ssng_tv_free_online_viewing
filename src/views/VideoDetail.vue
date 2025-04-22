@@ -106,10 +106,10 @@
             >
               <div class="episode-grid">
                 <el-button
-                  v-for="episode in playList.episodes"
+                  v-for="(episode, index) in playList.episodes"
                   :key="episode.url"
                   :class="{ 'is-active': activeEpisode === episode.url }"
-                  @click="playEpisode(playList.source, episode.url)"
+                  @click="playEpisode(playList.source, episode.url, index)"
                   size="small"
                 >
                   {{ episode.name }}
@@ -187,10 +187,8 @@ function addToFavorites() {
 // 开始播放第一集
 function startPlay() {
   if (playLists.value.length > 0 && playLists.value[0].episodes.length > 0) {
-    const firstPlaylist = playLists.value[0];
-    const firstEpisode = firstPlaylist.episodes[0];
-    
-    playEpisode(firstPlaylist.source, firstEpisode.url);
+    const { vod_id } = videoInfo.value
+    router.push(`/play/${vod_id}/1/heimuer`)
   }
 }
 
@@ -200,19 +198,20 @@ const playLists = computed(() => {
     return [];
   }
   
-  const sources = videoInfo.value.vod_play_from.split(',');
-  const urls = videoInfo.value.vod_play_url.split(',');
+  const playFrom = videoInfo.value.vod_play_from.split(',');
+  const playUrl = videoInfo.value.vod_play_url.split(',');
   
-  return sources.map((source, index) => {
-    const urlList = urls[index] ? urls[index].split('#') : [];
+  return playFrom.map((source, index) => {
+    const urlList = playUrl[index] ? playUrl[index].split('#') : [];
     
     return {
-      source,
-      episodes: urlList.map(item => {
-        const parts = item.split('$');
+      source: source.trim(),
+      episodes: urlList.map((item, episodeIndex) => {
+        const [name, url] = item.split('$');
         return {
-          name: parts[0] || `第${index + 1}集`,
-          url: parts[1] || ''
+          name: name?.trim() || `第${episodeIndex + 1}集`,
+          url: url?.trim() || '',
+          index: episodeIndex
         };
       }).filter(episode => episode.url)
     };
@@ -299,18 +298,9 @@ function saveToHistory(video) {
 }
 
 // 播放指定剧集
-function playEpisode(source, url) {
-  activePlaySource.value = source;
-  activeEpisode.value = url;
-  currentPlayUrl.value = url;
-  
-  // 滚动到播放器
-  setTimeout(() => {
-    const playerSection = document.querySelector('.video-player-section');
-    if (playerSection) {
-      playerSection.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, 100);
+function playEpisode(source, url, index) {
+  const { vod_id } = videoInfo.value
+  router.push(`/play/${vod_id}/${index + 1}/heimuer`)
 }
 
 // 格式化内容

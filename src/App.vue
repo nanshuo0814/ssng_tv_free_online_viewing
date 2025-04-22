@@ -1,13 +1,24 @@
 <template>
-  <div class="app-container">
-    <Sidebar />
-    <div class="main-wrapper" :class="{ 'sidebar-collapsed': isCollapsed }">
-      <TopNavbar />
-      <div class="main-content">
-        <router-view />
+  <el-config-provider :locale="zhCn">
+    <div class="app-container" :class="{ 'dark-theme': isDarkTheme }">
+      <Sidebar />
+      <div class="main-wrapper" :class="{ 'sidebar-collapsed': isCollapsed }">
+        <TopNavbar />
+        <div class="main-content">
+          <Suspense>
+            <template #default>
+              <router-view />
+            </template>
+            <template #fallback>
+              <div class="loading-container">
+                <el-skeleton :rows="10" animated />
+              </div>
+            </template>
+          </Suspense>
+        </div>
       </div>
     </div>
-  </div>
+  </el-config-provider>
 </template>
 
 <script setup>
@@ -16,10 +27,12 @@ import Sidebar from './components/Sidebar.vue'
 import TopNavbar from './components/TopNavbar.vue'
 import { useThemeStore } from './stores/theme'
 import { useSidebarStore } from './stores/sidebar'
+import zhCn from 'element-plus/dist/locale/zh-cn.mjs'
 
 const themeStore = useThemeStore()
 const sidebarStore = useSidebarStore()
 const isCollapsed = computed(() => sidebarStore.isCollapsed)
+const isDarkTheme = computed(() => themeStore.theme === 'dark')
 
 onMounted(() => {
   // 初始化主题
@@ -130,5 +143,39 @@ body {
 
 [data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.3);
+}
+
+.dark-theme {
+  --text-color: #e5eaf3;
+  --text-color-light: #a3a6ad;
+  --border-color: #4c4d4f;
+  
+  --page-background: #141414;
+  --card-background: #1d1d1d;
+  --button-bg: #2b2b2b;
+  --button-hover-bg: #363636;
+  
+  --card-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.3);
+  --image-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  
+  --scrollbar-thumb: #4c4d4f;
+  --scrollbar-track: #1d1d1d;
+}
+
+.loading-container {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Element Plus 暗色主题适配 */
+.dark-theme {
+  --el-bg-color: var(--card-background);
+  --el-bg-color-overlay: var(--card-background);
+  --el-text-color-primary: var(--text-color);
+  --el-text-color-regular: var(--text-color);
+  --el-border-color: var(--border-color);
+  --el-border-color-light: var(--border-color);
+  --el-fill-color-blank: var(--card-background);
 }
 </style> 
