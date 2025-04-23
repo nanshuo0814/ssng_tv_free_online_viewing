@@ -30,13 +30,25 @@
 
     <div class="episode-section">
       <div class="episode-header">
-        <h2 class="video-title">{{ videoInfo?.vod_name }}</h2>
+        <div class="title-row">
+          <h2 class="video-title">{{ videoInfo?.vod_name }}</h2>
+          <el-button
+            class="sort-button"
+            @click="toggleEpisodeSort"
+            title="切换排序"
+          >
+            <el-icon>
+              <component :is="isDescending ? 'SortDown' : 'SortUp'" />
+            </el-icon>
+            {{ isDescending ? '降序' : '升序' }}
+          </el-button>
+        </div>
         <div class="current-episode">当前播放：{{ currentEpisodeName }}</div>
       </div>
 
       <div class="episode-list">
         <el-button
-          v-for="episode in episodes"
+          v-for="episode in sortedEpisodes"
           :key="episode.url"
           :class="{ 'is-active': isCurrentEpisode(episode) }"
           @click="switchEpisode(episode)"
@@ -54,7 +66,7 @@ import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
-import { ArrowLeft } from '@element-plus/icons-vue'
+import { ArrowLeft, SortUp, SortDown } from '@element-plus/icons-vue'
 import DPlayer from 'dplayer'
 import Hls from 'hls.js/dist/hls.min.js'
 import { useThemeStore } from '@/stores/theme'
@@ -80,8 +92,27 @@ const episodes = ref([])
 const currentEpisode = ref(null)
 const error = ref(null)
 const hlsInstance = ref(null) // 添加 HLS 实例引用
+const isDescending = ref(false) // 排序状态
 
 const historyStore = useHistoryStore()
+
+// 切换排序方式
+const toggleEpisodeSort = () => {
+  isDescending.value = !isDescending.value
+}
+
+// 根据排序状态获取排序后的剧集列表
+const sortedEpisodes = computed(() => {
+  if (!episodes.value.length) return []
+  
+  if (isDescending.value) {
+    // 降序：从大到小
+    return [...episodes.value].sort((a, b) => b.index - a.index)
+  } else {
+    // 升序：从小到大
+    return [...episodes.value]
+  }
+})
 
 // 计算当前集数名称
 const currentEpisodeName = computed(() => {
@@ -512,11 +543,36 @@ watch(() => route.params, (newParams) => {
   margin-bottom: 20px;
 }
 
+.title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
 .video-title {
   font-size: 20px;
   font-weight: 600;
   color: var(--text-color);
-  margin: 0 0 10px;
+  margin: 0;
+}
+
+.sort-button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 14px;
+  padding: 2px 8px;
+  height: 24px;
+  margin-bottom: 2px;
+  color: var(--theme-color);
+  border: none;
+  background: transparent;
+}
+
+.sort-button:hover {
+  background-color: rgba(var(--theme-color-rgb), 0.1);
+  border-radius: 4px;
 }
 
 .current-episode {

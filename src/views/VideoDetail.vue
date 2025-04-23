@@ -99,7 +99,19 @@
       </div>
       
       <div class="video-play-section" v-if="playLists.length > 0">
-        <div class="section-title">播放列表</div>
+        <div class="section-title">
+          播放列表
+          <el-button
+            class="sort-button"
+            @click="toggleEpisodeSort"
+            title="切换排序"
+          >
+            <el-icon>
+              <component :is="isDescending ? 'SortDown' : 'SortUp'" />
+            </el-icon>
+            {{ isDescending ? '降序' : '升序' }}
+          </el-button>
+        </div>
         
         <div class="play-tabs">
           <el-tabs v-model="activePlaySource" type="card">
@@ -111,10 +123,10 @@
             >
               <div class="episode-grid">
                 <el-button
-                  v-for="(episode, index) in playList.episodes"
+                  v-for="(episode, index) in getSortedEpisodes(playList.episodes)"
                   :key="episode.url"
                   :class="{ 'is-active': activeEpisode === episode.url }"
-                  @click="playEpisode(playList.source, episode.url, index)"
+                  @click="playEpisode(playList.source, episode.url, episode.index)"
                   size="small"
                 >
                   {{ episode.name }}
@@ -138,7 +150,7 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
 import { ElMessage } from 'element-plus';
-import { VideoPlay, Star } from '@element-plus/icons-vue'
+import { VideoPlay, Star, SortUp, SortDown } from '@element-plus/icons-vue'
 import { useHistoryStore } from '../stores/history'
 import { useFavoriteStore } from '../stores/favorite'
 
@@ -358,6 +370,27 @@ onMounted(() => {
   historyStore.loadFromLocal()
   loadVideoDetail()
 })
+
+// 排序状态
+const isDescending = ref(false);
+
+// 切换排序方式
+function toggleEpisodeSort() {
+  isDescending.value = !isDescending.value;
+}
+
+// 获取排序后的剧集列表
+function getSortedEpisodes(episodes) {
+  if (!episodes) return [];
+  
+  if (isDescending.value) {
+    // 降序：从大到小
+    return [...episodes].sort((a, b) => b.index - a.index);
+  } else {
+    // 升序：从小到大
+    return [...episodes];
+  }
+}
 </script>
 
 <style scoped>
@@ -471,6 +504,27 @@ onMounted(() => {
   padding-bottom: 12px;
   border-bottom: 1px solid var(--border-color);
   color: var(--text-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sort-button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 14px;
+  padding: 2px 8px;
+  height: 24px;
+  margin-bottom: 2px;
+  color: var(--theme-color);
+  border: none;
+  background: transparent;
+}
+
+.sort-button:hover {
+  background-color: rgba(var(--theme-color-rgb), 0.1);
+  border-radius: 4px;
 }
 
 .play-tabs {
