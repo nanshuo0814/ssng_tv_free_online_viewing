@@ -75,6 +75,8 @@
         </div>
       </div>
     </div>
+    <!-- 添加回到顶部组件 -->
+    <BackToTop />
   </div>
 </template>
 
@@ -84,6 +86,7 @@ import { ElMessage } from 'element-plus'
 import axios from 'axios'
 import { useThemeStore } from '../stores/theme'
 import { Loading } from '@element-plus/icons-vue'
+import BackToTop from '@/components/BackToTop.vue'
 
 // 获取主题状态
 const themeStore = useThemeStore()
