@@ -1,5 +1,11 @@
 <template>
   <div class="video-detail-page">
+    <div class="back-button-container">
+      <el-button @click="goBack" class="back-button">
+        <el-icon><Back /></el-icon>
+        返回
+      </el-button>
+    </div>
     <div v-if="loading" class="loading-container">
       <el-skeleton :rows="10" animated />
     </div>
@@ -150,7 +156,7 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
 import { ElMessage } from 'element-plus';
-import { VideoPlay, Star, SortUp, SortDown } from '@element-plus/icons-vue'
+import { VideoPlay, Star, SortUp, SortDown, Back } from '@element-plus/icons-vue'
 import { useHistoryStore } from '../stores/history'
 import { useFavoriteStore } from '../stores/favorite'
 
@@ -391,14 +397,32 @@ function getSortedEpisodes(episodes) {
     return [...episodes];
   }
 }
+
+// 返回上一页
+const goBack = () => {
+  router.back();
+};
 </script>
 
 <style scoped>
+.back-button-container {
+  padding: 16px;
+}
+
+.back-button {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .video-detail-page {
-  padding: 20px;
   max-width: 1200px;
   margin: 0 auto;
   color: var(--text-color);
+}
+
+.video-detail-content {
+  padding: 0 20px 20px;
 }
 
 .loading-container,
