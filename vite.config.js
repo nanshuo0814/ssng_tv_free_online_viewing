@@ -16,6 +16,11 @@ export default defineConfig({
         target: 'https://www.heimuer.tv',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, '')
+      },
+      '/ikun': {
+        target: 'https://ikunzy.net',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/ikun/, '')
       }
     }
   }

@@ -10,8 +10,13 @@
         class="custom-alert"
       />
     </div>
-
-    <div class="player-header">
+    <div class="back-button-container">
+      <el-button @click="goBack" class="back-button">
+        <el-icon><Back /></el-icon>
+        返回
+      </el-button>
+    </div>
+    <!-- <div class="player-header">
       <el-button 
         :type="isDarkTheme ? 'default' : 'primary'" 
         plain 
@@ -22,7 +27,7 @@
         <el-icon><ArrowLeft /></el-icon>
         返回详情页
       </el-button>
-    </div>
+    </div> -->
 
     <div class="player-container">
       <div id="dplayer"></div>
@@ -272,8 +277,8 @@ const initPlayer = (url) => {
 
 // 切换集数
 const switchEpisode = (episode) => {
-  const { id } = route.params
-  router.push(`/play/${id}/${episode.index + 1}/heimuer`)
+  const { id, source } = route.params
+  router.push(`/play/${id}/${episode.index + 1}/${source}`)
   currentEpisode.value = episode
   cleanupPlayer() // 在切换剧集前清理资源
   initPlayer(episode.url)
@@ -285,18 +290,37 @@ const loadVideoInfo = async () => {
   error.value = null;
   
   try {
-    const { id, episode } = route.params;
-    console.log('加载视频信息，ID:', id, '剧集:', episode);
+    const { id, episode, source } = route.params;
+    console.log('加载视频信息，ID:', id, '剧集:', episode, '播放源:', source);
     
     if (!id) {
       throw new Error('视频ID不能为空');
     }
     
-    const response = await axios.get(`/api/api.php/provide/vod/`, {
+    // 根据播放源选择不同的API端点
+    let apiEndpoint = '/api';
+    if (source === 'ikun') {
+      apiEndpoint = '/ikun';
+    }
+    
+    const response = await axios.get(`${apiEndpoint}/api.php/provide/vod/`, {
       params: {
         ac: 'detail',
         ids: id
       }
+    }).catch(error => {
+      console.error('API请求失败:', error);
+      // 如果是爱坤源请求失败，尝试使用默认API
+      if (source === 'ikun') {
+        console.log('尝试使用默认API获取信息');
+        return axios.get(`/api/api.php/provide/vod/`, {
+          params: {
+            ac: 'detail',
+            ids: id
+          }
+        });
+      }
+      throw error;
     });
     
     console.log('API响应:', response.data);
@@ -326,62 +350,41 @@ const loadVideoInfo = async () => {
     console.log('播放源:', playFrom);
     console.log('播放地址:', playUrl);
     
-    // 获取 heimuer 源的播放列表
-    const heimuerIndex = playFrom.findIndex(source => 
-      source.toLowerCase().trim() === 'heimuer'
-    );
+    // 获取指定源的播放列表
+    let sourceIndex = -1;
     
-    console.log('heimuer源索引:', heimuerIndex);
-    
-    if (heimuerIndex === -1) {
-      throw new Error('未找到 heimuer 播放源');
+    // 针对爱坤源特殊处理
+    if (source === 'ikun') {
+      // 对于爱坤源，优先查找ikm3u8
+      sourceIndex = playFrom.findIndex(s => s.toLowerCase().trim() === 'ikm3u8');
+    } else {
+      // 对于其他源，按照传入的source查找
+      sourceIndex = playFrom.findIndex(s => s.toLowerCase().trim() === source.toLowerCase().trim());
     }
     
-    if (!playUrl[heimuerIndex]) {
-      throw new Error('播放地址列表为空');
-    }
+    console.log('选中的播放源索引:', sourceIndex);
     
-    const urlList = playUrl[heimuerIndex].split('#');
-    console.log('解析的URL列表:', urlList);
-    
-    episodes.value = urlList.map((item, index) => {
-      const [name, url] = item.split('$');
-      if (!url) {
-        console.warn(`第${index + 1}集缺少播放地址`);
-        return null;
+    if (sourceIndex === -1) {
+      // 如果没有找到指定的源，尝试使用第一个可用的源
+      console.warn(`未找到播放源 ${source}，尝试使用第一个可用的源`);
+      if (playFrom.length > 0 && playUrl.length > 0) {
+        const urlList = playUrl[0].split('#');
+        processEpisodes(urlList);
+      } else {
+        throw new Error('没有可用的播放源');
       }
-      return {
-        name: name?.trim() || `第${index + 1}集`,
-        url: url.trim(),
-        index
-      };
-    }).filter(Boolean);
-    
-    console.log('解析的剧集列表:', episodes.value);
-    
-    if (episodes.value.length === 0) {
-      throw new Error('没有可用的剧集');
+    } else {
+      if (!playUrl[sourceIndex]) {
+        throw new Error('播放地址列表为空');
+      }
+      
+      const urlList = playUrl[sourceIndex].split('#');
+      console.log('解析的URL列表:', urlList);
+      processEpisodes(urlList);
     }
-
-    // 设置当前集数
-    const episodeNumber = parseInt(episode) - 1;
-    console.log('目标剧集编号:', episodeNumber);
-    
-    if (isNaN(episodeNumber) || episodeNumber < 0 || episodeNumber >= episodes.value.length) {
-      throw new Error('无效的剧集编号');
-    }
-    
-    currentEpisode.value = episodes.value[episodeNumber];
-    console.log('当前选中剧集:', currentEpisode.value);
-    
-    if (!currentEpisode.value.url) {
-      throw new Error('当前剧集缺少播放地址');
-    }
-    
-    initPlayer(currentEpisode.value.url);
 
     // 获取到视频信息后添加到历史记录
-    addToHistory()
+    addToHistory();
   } catch (error) {
     console.error('加载视频信息失败:', error);
     ElMessage.error(error.message || '加载视频信息失败');
@@ -390,12 +393,57 @@ const loadVideoInfo = async () => {
   }
 }
 
-// 返回详情页
-const goBack = () => {
-  const { id } = route.params
-  router.push(`/video/detail/${id}`)
+// 处理剧集列表
+const processEpisodes = (urlList) => {
+  episodes.value = urlList.map((item, index) => {
+    const [name, url] = item.split('$');
+    if (!url) {
+      console.warn(`第${index + 1}集缺少播放地址`);
+      return null;
+    }
+    return {
+      name: name?.trim() || `第${index + 1}集`,
+      url: url.trim(),
+      index
+    };
+  }).filter(Boolean);
+  
+  console.log('解析的剧集列表:', episodes.value);
+  
+  if (episodes.value.length === 0) {
+    throw new Error('没有可用的剧集');
+  }
+
+  // 设置当前集数
+  const { episode } = route.params;
+  const episodeNumber = parseInt(episode) - 1;
+  console.log('目标剧集编号:', episodeNumber);
+  
+  if (isNaN(episodeNumber) || episodeNumber < 0 || episodeNumber >= episodes.value.length) {
+    console.warn('无效的剧集编号，使用第一集');
+    currentEpisode.value = episodes.value[0];
+  } else {
+    currentEpisode.value = episodes.value[episodeNumber];
+  }
+  
+  console.log('当前选中剧集:', currentEpisode.value);
+  
+  if (!currentEpisode.value.url) {
+    throw new Error('当前剧集缺少播放地址');
+  }
+  
+  initPlayer(currentEpisode.value.url);
 }
 
+// 返回详情页
+// const goBack = () => {
+//   const { id } = route.params
+//   router.push(`/video/detail/${id}`)
+// }
+// 返回上一页
+const goBack = () => {
+  router.back();
+};
 // 在视频信息加载成功后添加到历史记录
 const addToHistory = () => {
   if (videoInfo.value) {
@@ -489,14 +537,17 @@ watch(() => route.params, (newParams) => {
   justify-content: space-between;
   align-items: center;
 }
-
-.back-button {
+.back-button-container {
+  /* padding: 16px; */
+  margin-bottom: 16px;
+}
+/* .back-button {
   height: 30px;
   display: flex;
   align-items: center;
   gap: 4px;
   transition: all 0.3s ease;
-}
+} */
 
 .dark-theme .back-button {
   color: var(--el-text-color-primary);

@@ -27,6 +27,14 @@
     </div>
     
     <div v-else class="video-detail-content">
+      <!-- 源加载中的状态显示 -->
+      <div v-if="currentSourceLoading" class="source-loading-mask">
+        <div class="source-loading-content">
+          <el-icon class="is-loading source-loading-icon"><Loading /></el-icon>
+          <span>加载播放源信息中...</span>
+        </div>
+      </div>
+      
       <div class="video-info-section">
         <div class="video-poster">
           <img 
@@ -87,9 +95,14 @@
           </div>
 
           <div class="action-buttons">
-            <el-button type="primary" @click="startPlay" v-if="playLists.length > 0">
+            <el-button 
+              type="primary" 
+              @click="startPlay" 
+              v-if="playLists.length > 0"
+              :disabled="!currentPlaySource || !currentPlaySource.episodes || currentPlaySource.episodes.length === 0"
+            >
               <el-icon class="button-icon"><VideoPlay /></el-icon>
-              <span class="button-text">立即播放</span>
+              <span class="button-text">{{ getPlayButtonText() }}</span>
             </el-button>
             <el-button 
               :type="isFavorited ? 'info' : 'success'" 
@@ -105,41 +118,43 @@
       </div>
       
       <div class="video-play-section" v-if="playLists.length > 0">
-        <div class="section-title">
-          播放列表
-          <el-button
-            class="sort-button"
-            @click="toggleEpisodeSort"
-            title="切换排序"
-          >
-            <el-icon>
-              <component :is="isDescending ? 'SortDown' : 'SortUp'" />
-            </el-icon>
-            {{ isDescending ? '降序' : '升序' }}
-          </el-button>
-        </div>
-        
-        <div class="play-tabs">
-          <el-tabs v-model="activePlaySource" type="card">
-            <el-tab-pane 
-              v-for="(playList, index) in playLists" 
-              :key="index"
-              :label="playList.source"
-              :name="playList.source"
-            >
-              <div class="episode-grid">
-                <el-button
-                  v-for="(episode, index) in getSortedEpisodes(playList.episodes)"
-                  :key="episode.url"
-                  :class="{ 'is-active': activeEpisode === episode.url }"
-                  @click="playEpisode(playList.source, episode.url, episode.index)"
-                  size="small"
-                >
-                  {{ episode.name }}
-                </el-button>
-              </div>
-            </el-tab-pane>
-          </el-tabs>
+        <div class="source">
+          <div class="source-title">播放源</div>
+          <div class="play-tabs">
+            <el-tabs v-model="activePlaySource" type="card" @tab-click="onTabClick">
+              <el-tab-pane 
+                v-for="(playList, index) in playLists" 
+                :key="playList.sourceKey || index"
+                :label="playList.source"
+                :name="playList.source"
+              >
+                <div class="section-title">
+                  选集播放
+                  <el-button
+                    class="sort-button"
+                    @click="toggleEpisodeSort"
+                    title="切换排序"
+                  >
+                    <el-icon>
+                      <component :is="isDescending ? 'SortDown' : 'SortUp'" />
+                    </el-icon>
+                    {{ isDescending ? '降序' : '升序' }}
+                  </el-button>
+                </div>
+                <div class="episode-grid">
+                  <el-button
+                    v-for="(episode, index) in getSortedEpisodes(playList.episodes)"
+                    :key="episode.url || index"
+                    :class="{ 'is-active': activeEpisode === episode.url }"
+                    @click="playEpisode(playList.source, episode.url, episode.index)"
+                    size="small"
+                  >
+                    {{ episode.name }}
+                  </el-button>
+                </div>
+              </el-tab-pane>
+            </el-tabs>
+          </div>
         </div>
       </div>
       
@@ -152,11 +167,11 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
 import { ElMessage } from 'element-plus';
-import { VideoPlay, Star, SortUp, SortDown, Back } from '@element-plus/icons-vue'
+import { VideoPlay, Star, SortUp, SortDown, Back, Loading } from '@element-plus/icons-vue'
 import { useHistoryStore } from '../stores/history'
 import { useFavoriteStore } from '../stores/favorite'
 
@@ -169,9 +184,11 @@ const videoId = ref(route.params.id);
 const loading = ref(false);
 const error = ref(null);
 const videoInfo = ref(null);
+const originalVideoInfo = ref(null); // 保存原始影片信息
 const activePlaySource = ref('');
 const activeEpisode = ref('');
 const currentPlayUrl = ref('');
+const currentSourceLoading = ref(false); // 当前源加载状态
 
 // 在 setup 中添加
 const historyStore = useHistoryStore()
@@ -220,38 +237,349 @@ function getVideoType() {
   return type || 'video'
 }
 
+// 播放指定剧集
+function playEpisode(source, url, index) {
+  // 获取当前选中的播放源信息
+  const currentSource = playLists.value.find(s => s.source === source);
+  if (!currentSource) return;
+  
+  // 获取正确的ID
+  let sourceId = videoInfo.value.vod_id;
+  
+  // 如果当前显示的是爱坤信息，但要播放的是其他源，恢复原始ID
+  if (videoInfo.value._source === '爱坤' && currentSource.source !== '爱坤') {
+    sourceId = originalVideoInfo.value.vod_id;
+  }
+  
+  // 如果当前显示的不是爱坤信息，但要播放的是爱坤源，使用爱坤的ID
+  if (ikunDetailInfo.value && currentSource.source === '爱坤') {
+    sourceId = ikunDetailInfo.value.vod_id;
+  }
+  
+  // 统一使用内部播放页面
+  router.push(`/play/${sourceId}/${index + 1}/${currentSource.sourceKey}`);
+}
+
+// 获取当前选中的播放源
+const currentPlaySource = computed(() => {
+  return playLists.value.find(source => source.source === activePlaySource.value);
+});
+
+// 获取播放按钮文本，基于当前选择的播放源
+function getPlayButtonText() {
+  if (playLists.value.length === 0) return '立即播放';
+  
+  if (!currentPlaySource.value) return '立即播放';
+  
+  // 如果当前源没有可用剧集，显示状态信息
+  if (!currentPlaySource.value.episodes || currentPlaySource.value.episodes.length === 0) {
+    return `${currentPlaySource.value.source}(无可用剧集)`;
+  }
+  
+  return `播放【${currentPlaySource.value.source}】`;
+}
+
 // 开始播放第一集
 function startPlay() {
-  if (playLists.value.length > 0 && playLists.value[0].episodes.length > 0) {
-    const { vod_id } = videoInfo.value
-    router.push(`/play/${vod_id}/1/heimuer`)
+  if (playLists.value.length > 0) {
+    // 使用当前选中的播放源，而不是默认的第一个播放源
+    const sourceToPlay = currentPlaySource.value || playLists.value[0];
+    
+    if (sourceToPlay && sourceToPlay.episodes && sourceToPlay.episodes.length > 0) {
+      const firstEpisode = sourceToPlay.episodes[0];
+      console.log(`立即播放: 使用 ${sourceToPlay.source} 源的第一集`);
+      
+      // 获取正确的ID
+      let sourceId = videoInfo.value.vod_id;
+      
+      // 如果当前显示的是爱坤信息，但要播放的是其他源，恢复原始ID
+      if (videoInfo.value._source === '爱坤' && sourceToPlay.source !== '爱坤') {
+        sourceId = originalVideoInfo.value.vod_id;
+      }
+      
+      // 如果当前显示的不是爱坤信息，但要播放的是爱坤源，使用爱坤的ID
+      if (ikunDetailInfo.value && sourceToPlay.source === '爱坤') {
+        sourceId = ikunDetailInfo.value.vod_id;
+      }
+      
+      // 统一使用内部播放页面
+      router.push(`/play/${sourceId}/1/${sourceToPlay.sourceKey}`);
+    } else {
+      console.log(`立即播放: ${sourceToPlay.source} 源没有可用剧集`);
+      ElMessage.warning('当前播放源没有可用剧集');
+    }
+  } else {
+    console.log('立即播放: 没有可用播放源');
+    ElMessage.warning('没有可用播放源');
   }
 }
 
 // 播放列表
 const playLists = computed(() => {
-  if (!videoInfo.value || !videoInfo.value.vod_play_from || !videoInfo.value.vod_play_url) {
-    return [];
+  const lists = [];
+  
+  // 添加默认的 heimuer 播放源
+  if (videoInfo.value && videoInfo.value.vod_play_from && videoInfo.value.vod_play_url) {
+    const playFrom = videoInfo.value.vod_play_from.split(',');
+    const playUrl = videoInfo.value.vod_play_url.split(',');
+    
+    playFrom.forEach((source, index) => {
+      const urlList = playUrl[index] ? playUrl[index].split('#') : [];
+      
+      if (urlList.length > 0) {
+        // 修复：将所有包含heimuer或ikm3u8的源显示为"黑木耳"
+        const sourceName = source.trim();
+        const displayName = (sourceName === 'heimuer' || sourceName === 'ikm3u8') ? '黑木耳' : sourceName;
+        
+        lists.push({
+          source: displayName, // 显示名称
+          sourceKey: sourceName, // 保留原始的键名，用于路由跳转
+          episodes: urlList.map((item, episodeIndex) => {
+            const [name, url] = item.split('$');
+            return {
+              name: name?.trim() || `第${episodeIndex + 1}集`,
+              url: url?.trim() || '',
+              index: episodeIndex
+            };
+          }).filter(episode => episode.url)
+        });
+      }
+    });
   }
   
-  const playFrom = videoInfo.value.vod_play_from.split(',');
-  const playUrl = videoInfo.value.vod_play_url.split(',');
-  
-  return playFrom.map((source, index) => {
-    const urlList = playUrl[index] ? playUrl[index].split('#') : [];
-    
-    return {
-      source: source.trim(),
-      episodes: urlList.map((item, episodeIndex) => {
-        const [name, url] = item.split('$');
+  // 添加爱坤播放源
+  if (videoInfo.value && ikunPlayList.value.length > 0) {
+    lists.push({
+      source: '爱坤',
+      sourceKey: 'ikun', // 添加sourceKey用于识别
+      episodes: ikunPlayList.value.map((episode, index) => {
         return {
-          name: name?.trim() || `第${episodeIndex + 1}集`,
-          url: url?.trim() || '',
-          index: episodeIndex
+          name: episode.name || `第${index + 1}集`,
+          url: episode.url || '',
+          index: index
         };
-      }).filter(episode => episode.url)
-    };
-  }).filter(playList => playList.episodes.length > 0);
+      })
+    });
+  }
+  
+  return lists;
+});
+
+// 爱坤播放源的数据
+const ikunPlayList = ref([]);
+const ikunLoading = ref(false);
+const ikunLoaded = ref(false);
+const ikunDetailInfo = ref(null); // 存储爱坤源的详细信息
+
+// 监听播放源变化
+watch(() => activePlaySource.value, async (newSource, oldSource) => {
+  if (!newSource || !videoInfo.value) return;
+  
+  console.log(`播放源切换: ${oldSource} -> ${newSource}`); // 添加日志，便于调试
+  
+  // 强制刷新一下，确保 DOM 更新
+  await nextTick();
+  
+  // 查找当前选中的播放源
+  const currentSource = playLists.value.find(source => source.source === newSource);
+  if (!currentSource) {
+    console.log('未找到当前播放源:', newSource);
+    return;
+  }
+  
+  // 在切换源时先重置选集状态
+  activeEpisode.value = '';
+  currentPlayUrl.value = '';
+  
+  // 根据不同的播放源类型获取影片信息
+  if (currentSource.sourceKey === 'ikun') {
+    // 如果是爱坤源，则获取详细信息
+    currentSourceLoading.value = true;
+    try {
+      // 等待爱坤源加载完毕
+      if (!ikunLoaded.value) {
+        await fetchIkunSource();
+      }
+      
+      // 更新UI显示
+      if (ikunDetailInfo.value) {
+        updateIkunDetailDisplay();
+      }
+    } catch (error) {
+      console.error('切换到爱坤源时出错:', error);
+    } finally {
+      currentSourceLoading.value = false;
+      // 刷新DOM以确保内容显示
+      await nextTick();
+    }
+  } else {
+    // 如果是从爱坤源切换回其他源，恢复原始数据
+    if (oldSource && playLists.value.find(source => source.source === oldSource)?.sourceKey === 'ikun') {
+      if (originalVideoInfo.value) {
+        console.log('从爱坤源切换回来，恢复原始数据');
+        videoInfo.value = { ...originalVideoInfo.value };
+        // 刷新DOM以确保内容显示
+        await nextTick();
+      }
+    }
+  }
+  
+  // 强制触发playLists的重新计算
+  const tempVideoInfo = { ...videoInfo.value };
+  videoInfo.value = null;
+  await nextTick();
+  videoInfo.value = tempVideoInfo;
+  await nextTick();
+  
+  // 触发立即播放按钮文本更新
+  console.log('当前播放源状态已更新，立即播放按钮文本:', getPlayButtonText());
+  
+  // 重新获取最新的当前源，确保我们使用的是最新的数据
+  const updatedSource = playLists.value.find(source => source.source === newSource);
+  if (!updatedSource) {
+    console.log('更新后未找到当前播放源:', newSource);
+    return;
+  }
+  
+  // 无论是哪种源，都确保选择第一集
+  console.log(`当前源 ${newSource} 的剧集数:`, updatedSource.episodes?.length);
+  if (updatedSource.episodes && updatedSource.episodes.length > 0) {
+    const firstEpisodeUrl = updatedSource.episodes[0].url;
+    console.log(`选择第一集: ${firstEpisodeUrl}`);
+    activeEpisode.value = firstEpisodeUrl;
+    currentPlayUrl.value = firstEpisodeUrl;
+  } else {
+    console.log(`${newSource} 源没有可用剧集`);
+  }
+});
+
+// 更新爱坤详情信息到UI
+const updateIkunDetailDisplay = () => {
+  if (!ikunDetailInfo.value || !originalVideoInfo.value) return;
+  
+  // 更新展示的影片信息，但保留原始ID等关键信息
+  const originalId = originalVideoInfo.value.vod_id;
+  const originalType = originalVideoInfo.value.type_id;
+  
+  // 临时存储详细信息，与原始信息合并
+  const detailInfo = {
+    ...ikunDetailInfo.value,
+    vod_id: originalId, // 保留原始ID
+    type_id: originalType, // 保留原始类型
+    _source: '爱坤' // 标记来源
+  };
+  
+  // 更新视图上的信息
+  videoInfo.value = detailInfo;
+};
+
+// 获取匹配的爱坤影片
+const getIkunMatchedMovie = async () => {
+  try {
+    const response = await axios.get(`/ikun/api.php/provide/vod/`, {
+      params: {
+        ac: 'videolist',
+        wd: videoInfo.value.vod_name
+      }
+    });
+    
+    if (response.data && response.data.code === 1 && response.data.list && response.data.list.length > 0) {
+      // 找到最匹配的影片
+      return response.data.list.find(item => 
+        item.vod_name === videoInfo.value.vod_name || 
+        (item.vod_sub && item.vod_sub.includes(videoInfo.value.vod_name))
+      ) || response.data.list[0];
+    }
+  } catch (error) {
+    console.error('查找匹配的爱坤影片失败:', error);
+  }
+  
+  return null;
+};
+
+// 获取爱坤播放源数据
+const fetchIkunSource = async () => {
+  if (ikunLoaded.value || !videoInfo.value || ikunLoading.value) return;
+  
+  ikunLoading.value = true;
+  ikunPlayList.value = []; // 先清空播放列表，避免旧数据干扰
+  
+  try {
+    console.log('开始获取爱坤源...');
+    // 使用影片名称搜索爱坤资源
+    const matchedMovie = await getIkunMatchedMovie();
+    
+    if (matchedMovie && matchedMovie.vod_play_url) {
+      console.log('找到匹配的爱坤电影:', matchedMovie.vod_name);
+      // 先获取完整的详情信息
+      try {
+        const detailResponse = await axios.get(`/ikun/api.php/provide/vod/`, {
+          params: {
+            ac: 'detail',
+            ids: matchedMovie.vod_id
+          }
+        });
+        
+        if (detailResponse.data && detailResponse.data.code === 1 && 
+            detailResponse.data.list && detailResponse.data.list.length > 0) {
+          ikunDetailInfo.value = detailResponse.data.list[0];
+          console.log('获取到爱坤详情信息:', ikunDetailInfo.value.vod_name);
+          
+          // 找到ikm3u8播放源（爱坤默认播放源）
+          const playSource = ikunDetailInfo.value.vod_play_from.split(',')
+            .findIndex(source => source.trim() === 'ikm3u8');
+          
+          if (playSource !== -1) {
+            const playUrls = ikunDetailInfo.value.vod_play_url.split(',')[playSource];
+            if (playUrls) {
+              const episodes = playUrls.split('#');
+              ikunPlayList.value = episodes.map((item, index) => {
+                const [name, url] = item.split('$');
+                return {
+                  name: name?.trim() || `第${index + 1}集`,
+                  url: url?.trim() || '',
+                  id: matchedMovie.vod_id,
+                  index
+                };
+              }).filter(episode => episode.url);
+              
+              console.log(`爱坤播放列表加载完成，共 ${ikunPlayList.value.length} 集`);
+            }
+          }
+        }
+      } catch (detailError) {
+        console.error('获取爱坤详情失败，使用搜索结果:', detailError);
+        // 如果获取详情失败，降级使用搜索结果的播放地址
+        const playUrls = matchedMovie.vod_play_url.split('#');
+        ikunPlayList.value = playUrls.map((item, index) => {
+          const [name, url] = item.split('$');
+          return {
+            name: name?.trim() || `第${index + 1}集`,
+            url: url?.trim() || '',
+            id: matchedMovie.vod_id,
+            index
+          };
+        }).filter(episode => episode.url);
+        
+        console.log(`从搜索结果加载爱坤播放列表，共 ${ikunPlayList.value.length} 集`);
+      }
+    } else {
+      console.log('未找到匹配的爱坤电影');
+    }
+    
+    ikunLoaded.value = true;
+  } catch (error) {
+    console.error('获取爱坤播放源失败:', error);
+  } finally {
+    ikunLoading.value = false;
+  }
+};
+
+// 在加载视频详情后也加载爱坤资源
+watch(() => videoInfo.value, (newVal) => {
+  if (newVal) {
+    fetchIkunSource();
+  }
 });
 
 // 播放器URL
@@ -297,23 +625,39 @@ async function loadVideoDetail() {
       }
     })
     const result = response.data;
-
     
     if (result && result.code === 1 && result.list && result.list.length > 0) {
       videoInfo.value = result.list[0];
+      originalVideoInfo.value = { ...result.list[0] }; // 保存原始数据
       
       // 获取到视频信息后添加到历史记录
       addToHistory();
       
+      // 获取爱坤播放源
+      await fetchIkunSource();
+      
+      // 等待DOM更新
+      await nextTick();
+      
       // 自动选择第一个播放源和第一集
       if (playLists.value.length > 0) {
-        activePlaySource.value = playLists.value[0].source;
+        console.log('可用播放源数量:', playLists.value.length);
         
-        if (playLists.value[0].episodes.length > 0) {
-          const firstEpisode = playLists.value[0].episodes[0];
-          activeEpisode.value = firstEpisode.url;
-          currentPlayUrl.value = firstEpisode.url;
+        // 默认选择黑木耳源（如果存在）
+        const heimuerSource = playLists.value.find(source => 
+          source.source === '黑木耳' || source.sourceKey === 'heimuer' || source.sourceKey === 'ikm3u8'
+        );
+        
+        if (heimuerSource) {
+          console.log('已找到黑木耳源');
+          activePlaySource.value = heimuerSource.source;
+        } else {
+          console.log('未找到黑木耳源，选择第一个可用源:', playLists.value[0].source);
+          activePlaySource.value = playLists.value[0].source;
         }
+        
+        // 等待播放源变化的watch处理程序执行完毕
+        // 不需要在这里手动设置选集，会由watch处理器自动设置第一集
       }
     } else {
       throw new Error(result.msg || '获取视频详情失败');
@@ -324,12 +668,6 @@ async function loadVideoDetail() {
   } finally {
     loading.value = false;
   }
-}
-
-// 播放指定剧集
-function playEpisode(source, url, index) {
-  const { vod_id } = videoInfo.value
-  router.push(`/play/${vod_id}/${index + 1}/heimuer`)
 }
 
 // 格式化内容
@@ -402,9 +740,28 @@ function getSortedEpisodes(episodes) {
 const goBack = () => {
   router.back();
 };
+
+// 添加选项卡点击事件处理
+function onTabClick(tab) {
+  console.log('手动点击了播放源:', tab.props.name);
+  // 这里的额外处理可以确保激活状态正确
+  activePlaySource.value = tab.props.name;
+}
 </script>
 
 <style scoped>
+.source {
+  /* margin-bottom: 20px; */
+}
+
+.source-title {
+  font-size: 18px;
+  font-weight: 600;
+  /* margin-bottom: 16px; */
+  /* padding-bottom: 12px; */
+  color: var(--text-color);
+}
+
 .back-button-container {
   padding: 16px;
 }
@@ -423,6 +780,7 @@ const goBack = () => {
 
 .video-detail-content {
   padding: 0 20px 20px;
+  position: relative;
 }
 
 .loading-container,
@@ -524,9 +882,9 @@ const goBack = () => {
 .section-title {
   font-size: 18px;
   font-weight: 600;
-  margin-bottom: 16px;
+  /* margin-bottom: 16px; */
   padding-bottom: 12px;
-  border-bottom: 1px solid var(--border-color);
+  /* border-bottom: 1px solid var(--border-color); */
   color: var(--text-color);
   display: flex;
   justify-content: space-between;
@@ -552,7 +910,7 @@ const goBack = () => {
 }
 
 .play-tabs {
-  margin-top: 15px;
+  margin-top: 10px;
 }
 
 .play-tabs :deep(.el-tabs__content) {
@@ -727,5 +1085,35 @@ const goBack = () => {
 .is-favorited {
   color: #ffd04b !important;
   transform: scale(1.1);
+}
+
+.source-loading-mask {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  border-radius: 12px;
+}
+
+.source-loading-content {
+  padding: 20px;
+  background-color: var(--card-background);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  box-shadow: var(--card-shadow);
+}
+
+.source-loading-icon {
+  font-size: 32px;
+  color: var(--theme-color);
 }
 </style> 
