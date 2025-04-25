@@ -178,7 +178,7 @@ import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
 import { ElMessage } from 'element-plus';
-import { VideoPlay, Star, SortUp, SortDown, Back, Loading, VideoCamera, Download, Monitor, Film, Cellphone } from '@element-plus/icons-vue'
+import { VideoPlay, Star, SortUp, SortDown, Back, Loading, VideoCamera, Download, Monitor, Film, Cellphone, VideoCameraFilled } from '@element-plus/icons-vue'
 import { useHistoryStore } from '../stores/history'
 import { useFavoriteStore } from '../stores/favorite'
 
@@ -287,6 +287,12 @@ function playEpisode(source, url, index) {
     console.log('使用360源影片ID:', sourceId);
   }
   
+  // 如果是卧龙源，使用卧龙源的影片ID
+  if (currentSource.sourceKey === 'wolong' && wolongDetailInfo.value) {
+    sourceId = wolongDetailInfo.value.vod_id;
+    console.log('使用卧龙源影片ID:', sourceId);
+  }
+  
   // 统一使用内部播放页面
   router.push(`/play/${sourceId}/${index + 1}/${currentSource.sourceKey}`);
 }
@@ -355,6 +361,12 @@ function startPlay() {
       if (sourceToPlay.sourceKey === '360' && videozy360DetailInfo.value) {
         sourceId = videozy360DetailInfo.value.vod_id;
         console.log('使用360源影片ID:', sourceId);
+      }
+      
+      // 如果是卧龙源，使用卧龙源的影片ID
+      if (sourceToPlay.sourceKey === 'wolong' && wolongDetailInfo.value) {
+        sourceId = wolongDetailInfo.value.vod_id;
+        console.log('使用卧龙源影片ID:', sourceId);
       }
       
       // 统一使用内部播放页面
@@ -521,6 +533,27 @@ const playLists = computed(() => {
     }
   }
   
+  // 添加卧龙播放源
+  if (videoInfo.value && wolongPlayList.value.length > 0) {
+    // 检查是否已经有卧龙源，避免重复添加
+    const hasWolongSource = lists.some(list => list.source === '卧龙');
+    
+    if (!hasWolongSource) {
+      lists.push({
+        source: '卧龙',
+        sourceKey: 'wolong', // 添加sourceKey用于识别
+        episodes: wolongPlayList.value.map((episode, index) => {
+          return {
+            name: episode.name || `第${index + 1}集`,
+            url: episode.url || '',
+            index: index,
+            id: episode.id || (wolongDetailInfo.value ? wolongDetailInfo.value.vod_id : null)
+          };
+        })
+      });
+    }
+  }
+  
   return lists;
 });
 
@@ -553,6 +586,12 @@ const videozy360PlayList = ref([]);
 const videozy360Loading = ref(false);
 const videozy360Loaded = ref(false);
 const videozy360DetailInfo = ref(null); // 存储360源的详细信息
+
+// 卧龙播放源的数据
+const wolongPlayList = ref([]);
+const wolongLoading = ref(false);
+const wolongLoaded = ref(false);
+const wolongDetailInfo = ref(null); // 存储卧龙源的详细信息
 
 // 监听播放源变化
 watch(() => activePlaySource.value, async (newSource, oldSource) => {
@@ -675,12 +714,32 @@ watch(() => activePlaySource.value, async (newSource, oldSource) => {
       // 刷新DOM以确保内容显示
       await nextTick();
     }
+  } else if (currentSource.sourceKey === 'wolong') {
+    // 如果是卧龙源，则获取详细信息
+    currentSourceLoading.value = true;
+    try {
+      // 等待卧龙源加载完毕
+      if (!wolongLoaded.value) {
+        await fetchWolongSource();
+      }
+      
+      // 更新UI显示
+      if (wolongDetailInfo.value) {
+        updateWolongDetailDisplay();
+      }
+    } catch (error) {
+      console.error('切换到卧龙源时出错:', error);
+    } finally {
+      currentSourceLoading.value = false;
+      // 刷新DOM以确保内容显示
+      await nextTick();
+    }
   } else {
-    // 如果是从爱坤源、速播源、华为源、急速源或360源切换回其他源，恢复原始数据
+    // 如果是从爱坤源、速播源、华为源、急速源、360源或卧龙源切换回其他源，恢复原始数据
     if (oldSource) {
       const oldSourceKey = playLists.value.find(source => source.source === oldSource)?.sourceKey;
-      if (oldSourceKey === 'ikun' || oldSourceKey === 'subo' || oldSourceKey === 'huawei' || 
-          oldSourceKey === 'jisu' || oldSourceKey === '360') {
+      if (oldSourceKey === 'ikun' || oldSourceKey === 'subo' || oldSourceKey === 'huawei' ||
+          oldSourceKey === 'jisu' || oldSourceKey === '360' || oldSourceKey === 'wolong') {
         if (originalVideoInfo.value) {
           console.log('从特殊源切换回来，恢复原始数据');
           videoInfo.value = { ...originalVideoInfo.value };
@@ -914,6 +973,9 @@ async function loadVideoDetail() {
       // 获取360播放源
       await fetch360Source();
       
+      // 获取卧龙播放源
+      await fetchWolongSource();
+      
       // 等待DOM更新
       await nextTick();
       
@@ -1060,6 +1122,11 @@ const getSourceIcon = (sourceKey) => {
   else if (sourceKey === '360' || sourceKey.includes('360') ||
           sourceKey.includes('360yun') || sourceKey.includes('360m3u8')) {
     return 'Picture';
+  }
+  // 卧龙源使用VideoCamera图标
+  else if (sourceKey === 'wolong' || sourceKey === '卧龙' ||
+          sourceKey.includes('wolongyun') || sourceKey.includes('wolongm3u8')) {
+    return 'VideoCameraFilled';
   }
   // 默认图标
   return 'VideoPlay';
@@ -1693,8 +1760,192 @@ watch(() => videoInfo.value, (newVal) => {
     fetchHuaweiSource();
     fetchJisuSource();
     fetch360Source();
+    fetchWolongSource();
   }
 });
+
+// 获取匹配的卧龙影片
+const getWolongMatchedMovie = async () => {
+  try {
+    const response = await axios.get(`/wolong/api.php/provide/vod/`, {
+      params: {
+        ac: 'videolist',
+        wd: videoInfo.value.vod_name
+      }
+    });
+    
+    if (response.data && response.data.code === 1 && response.data.list && response.data.list.length > 0) {
+      // 找到最匹配的影片
+      return response.data.list.find(item => 
+        item.vod_name === videoInfo.value.vod_name || 
+        (item.vod_sub && item.vod_sub.includes(videoInfo.value.vod_name))
+      ) || response.data.list[0];
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('获取卧龙影片失败:', error);
+    return null;
+  }
+};
+
+// 获取卧龙影片详情
+const getWolongMovieDetail = async (movieId) => {
+  try {
+    const response = await axios.get(`/wolong/api.php/provide/vod/`, {
+      params: {
+        ac: 'detail',
+        ids: movieId
+      }
+    });
+    
+    if (response.data && response.data.code === 1 && response.data.list && response.data.list.length > 0) {
+      return response.data.list[0];
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('获取卧龙影片详情失败:', error);
+    return null;
+  }
+};
+
+// 解析卧龙播放列表
+const parseWolongPlayList = (detail) => {
+  if (!detail || !detail.vod_play_from || !detail.vod_play_url) {
+    console.warn('卧龙源：播放数据不完整');
+    return [];
+  }
+  
+  const playFrom = detail.vod_play_from.split(',');
+  const playUrl = detail.vod_play_url.split(',');
+  
+  // 默认使用第一个播放源
+  if (playFrom.length > 0 && playUrl.length > 0) {
+    const videoUrls = playUrl[0].split('#');
+    
+    return videoUrls.map((item, index) => {
+      const [name, url] = item.split('$');
+      return {
+        name: name?.trim() || `第${index + 1}集`,
+        url: url?.trim() || '',
+        index
+      };
+    }).filter(item => item.url);
+  }
+  
+  return [];
+};
+
+// 获取卧龙源数据
+const fetchWolongSource = async () => {
+  if (wolongLoaded.value || wolongLoading.value) return;
+  
+  wolongLoading.value = true;
+  wolongPlayList.value = [];
+  
+  try {
+    // 保存原始影片信息，以便在切换回来时恢复
+    if (!originalVideoInfo.value) {
+      originalVideoInfo.value = { ...videoInfo.value };
+    }
+    
+    // 1. 先通过影片名称搜索匹配的影片
+    const matchedMovie = await getWolongMatchedMovie();
+    if (!matchedMovie) {
+      console.warn('卧龙源：未找到匹配的影片');
+      return;
+    }
+    
+    console.log('卧龙源：找到匹配影片', matchedMovie);
+    
+    // 2. 获取匹配影片的详情
+    const detailInfo = await getWolongMovieDetail(matchedMovie.vod_id);
+    if (!detailInfo) {
+      console.warn('卧龙源：获取影片详情失败');
+      return;
+    }
+    
+    console.log('卧龙源：获取到详细信息', detailInfo);
+    
+    // 3. 保存详情信息，用于展示
+    wolongDetailInfo.value = detailInfo;
+    
+    // 4. 解析播放列表
+    const episodes = parseWolongPlayList(detailInfo);
+    console.log('卧龙源：解析播放列表', episodes);
+    
+    if (episodes.length > 0) {
+      // 为每个剧集添加卧龙源的影片ID
+      wolongPlayList.value = episodes.map(episode => ({
+        ...episode,
+        id: detailInfo.vod_id // 添加卧龙源的影片ID
+      }));
+      console.log('卧龙源：完整播放列表', wolongPlayList.value);
+    } else {
+      console.warn('卧龙源：没有可用播放列表');
+    }
+  } catch (error) {
+    console.error('获取卧龙源数据失败:', error);
+  } finally {
+    wolongLoading.value = false;
+    wolongLoaded.value = true;
+  }
+};
+
+// 更新卧龙详情信息到UI
+const updateWolongDetailDisplay = () => {
+  if (!wolongDetailInfo.value || !originalVideoInfo.value) return;
+  
+  // 更新展示的影片信息，但保留原始ID等关键信息
+  const originalId = originalVideoInfo.value.vod_id;
+  const originalType = originalVideoInfo.value.type_id;
+  
+  // 保留原始的播放源信息
+  const originalPlayFrom = originalVideoInfo.value.vod_play_from;
+  const originalPlayUrl = originalVideoInfo.value.vod_play_url;
+  
+  // 临时存储详细信息，与原始信息合并
+  const detailInfo = {
+    ...wolongDetailInfo.value,
+    vod_id: originalId, // 保留原始ID
+    type_id: originalType, // 保留原始类型
+    _source: '卧龙', // 标记来源
+    vod_play_from: originalPlayFrom, // 保留原始播放源信息
+    vod_play_url: originalPlayUrl, // 保留原始播放URL信息
+  };
+  
+  // 更新视图上的信息
+  videoInfo.value = detailInfo;
+};
+
+const playVideo = (episode) => {
+  if (!videoInfo.value) return
+  
+  // 获取当前剧集信息
+  activeEpisode.value = episode.url
+  currentPlayUrl.value = episode.url
+  
+  // 获取当前选中的播放源
+  const currentSource = playLists.value.find(source => source.source === activePlaySource.value);
+  if (!currentSource) return;
+  
+  // 特殊处理不同的播放源
+  let sourceId = videoInfo.value?.vod_id || '';
+  if (currentSource.sourceKey === 'subo' && suboDetailInfo.value) {
+    sourceId = suboDetailInfo.value.vod_id;
+  } else if (currentSource.sourceKey === 'huawei' && huaweiDetailInfo.value) {
+    sourceId = huaweiDetailInfo.value.vod_id;
+  } else if (currentSource.sourceKey === 'jisu' && jisuDetailInfo.value) {
+    sourceId = jisuDetailInfo.value.vod_id;
+  } else if (currentSource.sourceKey === '360' && videozy360DetailInfo.value) {
+    sourceId = videozy360DetailInfo.value.vod_id;
+  } else if (currentSource.sourceKey === 'wolong' && wolongDetailInfo.value) {
+    sourceId = wolongDetailInfo.value.vod_id;
+  }
+  
+  router.push(`/play/${sourceId}/${episode.index + 1}/${currentSource.sourceKey}`);
+}
 </script>
 
 <style scoped>

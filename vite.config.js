@@ -41,6 +41,11 @@ export default defineConfig({
         target: 'https://360zy5.com',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/360/, '')
+      },
+      '/wolong': {
+        target: 'https://wolongzyw.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/wolong/, '')
       }
     }
   }

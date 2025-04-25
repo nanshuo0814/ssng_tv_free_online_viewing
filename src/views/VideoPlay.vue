@@ -427,6 +427,9 @@ const loadVideoInfo = async () => {
     } else if (source === '360') {
       apiEndpoint = '/360';
       console.log('使用360API端点获取数据, 影片ID:', id);
+    } else if (source === 'wolong') {
+      apiEndpoint = '/wolong';
+      console.log('使用卧龙API端点获取数据, 影片ID:', id);
     }
     
     const response = await axios.get(`${apiEndpoint}/api.php/provide/vod/`, {
@@ -436,8 +439,8 @@ const loadVideoInfo = async () => {
       }
     }).catch(error => {
       console.error('API请求失败:', error);
-      // 如果是爱坤源、速播源、华为源、急速源或360源请求失败，尝试使用默认API
-      if (source === 'ikun' || source === 'subo' || source === 'huawei' || source === 'jisu' || source === '360') {
+      // 如果是爱坤源、速播源、华为源、急速源、360源或卧龙源请求失败，尝试使用默认API
+      if (source === 'ikun' || source === 'subo' || source === 'huawei' || source === 'jisu' || source === '360' || source === 'wolong') {
         console.log('尝试使用默认API获取信息');
         return axios.get(`/api/api.php/provide/vod/`, {
           params: {
@@ -499,6 +502,14 @@ const loadVideoInfo = async () => {
         s.toLowerCase().trim().includes('360') || 
         s.toLowerCase().trim().includes('360yun') || 
         s.toLowerCase().trim().includes('360m3u8')
+      );
+    } else if (source === 'wolong') {
+      // 对于卧龙源，查找包含wolong的源
+      sourceIndex = playFrom.findIndex(s => 
+        s.toLowerCase().trim() === 'wolong' || 
+        s.toLowerCase().trim().includes('wolong') || 
+        s.toLowerCase().trim().includes('wolongyun') || 
+        s.toLowerCase().trim().includes('wolongm3u8')
       );
     } else {
       // 对于其他源，按照传入的source查找
