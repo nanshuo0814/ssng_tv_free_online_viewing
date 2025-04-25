@@ -119,48 +119,50 @@
       
       <div class="video-play-section" v-if="playLists.length > 0">
         <div class="source">
-          <div class="source-title">播放源</div>
-          <div class="play-tabs">
-            <el-tabs v-model="activePlaySource" type="card" @tab-click="onTabClick">
-              <el-tab-pane 
-                v-for="(playList, index) in playLists" 
+          <div class="source-header">
+            <div class="source-title">播放源</div>
+            <el-select v-model="activePlaySource" class="source-select" placeholder="请选择播放源">
+              <el-option
+                v-for="(playList, index) in playLists"
                 :key="playList.sourceKey || index"
-                :name="playList.source"
+                :label="playList.source"
+                :value="playList.source"
               >
-                <template #label>
-                  <div class="source-tab-label">
-                    <el-icon>
-                      <component :is="getSourceIcon(playList.sourceKey || playList.source)" />
-                    </el-icon>
-                    {{ playList.source }}
-                  </div>
-                </template>
-                <div class="section-title">
-                  选集播放
-                  <el-button
-                    class="sort-button"
-                    @click="toggleEpisodeSort"
-                    title="切换排序"
-                  >
-                    <el-icon>
-                      <component :is="isDescending ? 'SortDown' : 'SortUp'" />
-                    </el-icon>
-                    {{ isDescending ? '降序' : '升序' }}
-                  </el-button>
+                <div class="source-option-label">
+                  <el-icon>
+                    <component :is="getSourceIcon(playList.sourceKey || playList.source)" />
+                  </el-icon>
+                  <span>{{ playList.source }}</span>
                 </div>
-                <div class="episode-grid">
-                  <el-button
-                    v-for="(episode, index) in getSortedEpisodes(playList.episodes)"
-                    :key="episode.url || index"
-                    :class="{ 'is-active': activeEpisode === episode.url }"
-                    @click="playEpisode(playList.source, episode.url, episode.index)"
-                    size="small"
-                  >
-                    {{ episode.name }}
-                  </el-button>
-                </div>
-              </el-tab-pane>
-            </el-tabs>
+              </el-option>
+            </el-select>
+          </div>
+          
+          <div v-if="currentPlaySource" class="episode-container">
+            <div class="section-title">
+              选集播放
+              <el-button
+                class="sort-button"
+                @click="toggleEpisodeSort"
+                title="切换排序"
+              >
+                <el-icon>
+                  <component :is="isDescending ? 'SortDown' : 'SortUp'" />
+                </el-icon>
+                {{ isDescending ? '降序' : '升序' }}
+              </el-button>
+            </div>
+            <div class="episode-grid">
+              <el-button
+                v-for="(episode, index) in getSortedEpisodes(currentPlaySource.episodes)"
+                :key="episode.url || index"
+                :class="{ 'is-active': activeEpisode === episode.url }"
+                @click="playEpisode(currentPlaySource.source, episode.url, episode.index)"
+                size="small"
+              >
+                {{ episode.name }}
+              </el-button>
+            </div>
           </div>
         </div>
       </div>
@@ -2360,6 +2362,87 @@ const playVideo = (episode) => {
   
   .source-tab-label .el-icon {
     font-size: 14px;
+  }
+}
+
+.source-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.source-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.source-select {
+  width: 180px;
+}
+
+:deep(.el-select-dropdown__item) {
+  padding: 0 15px;
+}
+
+:deep(.el-select-dropdown__item.selected) {
+  color: var(--theme-color);
+  font-weight: bold;
+}
+
+:deep(.el-input__wrapper) {
+  padding: 0 12px;
+  border-radius: 8px;
+}
+
+:deep(.el-select .el-input__inner) {
+  height: 36px;
+}
+
+.source-option-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.source-option-label .el-icon {
+  font-size: 16px;
+  color: var(--theme-color);
+}
+
+.episode-container {
+  margin-top: 15px;
+}
+
+@media (max-width: 768px) {
+  .source-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 15px;
+  }
+  
+  .source-select {
+    width: 100%;
+  }
+  
+  .source-title {
+    font-size: 16px;
+    margin-bottom: 5px;
+  }
+  
+  .episode-container {
+    margin-top: 10px;
+  }
+  
+  :deep(.el-select .el-input__inner) {
+    font-size: 14px;
+  }
+  
+  :deep(.el-select-dropdown__item) {
+    height: 40px;
+    line-height: 40px;
   }
 }
 </style> 

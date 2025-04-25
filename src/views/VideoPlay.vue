@@ -155,6 +155,247 @@ const cleanupPlayer = () => {
   }
 }
 
+// 添加计算属性：判断URL是否是直链媒体
+const isDirectUrl = computed(() => {
+  if (!currentEpisode.value?.url) return false;
+  
+  let url = currentEpisode.value.url;
+  const { source } = route.params;
+  
+  // 处理特殊情况，例如华为源和卧龙源
+  if (source === 'huawei' && url.includes('m3u.nikanba.live')) {
+    url = url.replace('m3u.nikanba.live', 'cos.m3u8hw8.com');
+  } else if (source === 'wolong' && url.includes('$')) {
+    // 处理卧龙源格式问题
+    const parts = url.split('$');
+    url = parts.length > 1 ? parts[parts.length - 1] : url;
+  }
+  
+  // 检查是否是直接媒体文件
+  const isDirectMedia = url.match(/\.(mp4|avi|mkv|rmvb|flv|mov)$/i);
+  
+  // 检查是否是已知的直链域名
+  const knownDirectDomains = [
+    'subokk.com', 'play.subo', 'subo', 
+    'cjhwba.com', 'huawei', 
+    'jisuzy.com', 'jisu', 
+    '360zy', 
+    'wolong', 'wolongzyw',
+    'mp4.videojs.com'
+  ];
+  
+  const isKnownDirectUrl = knownDirectDomains.some(domain => url.includes(domain));
+  
+  // 检查是否是M3U8文件
+  const isM3u8 = url.toLowerCase().includes('.m3u8');
+  
+  // 优先检查是否为直接媒体文件，然后检查是否是已知的直链域名
+  return isDirectMedia || (isKnownDirectUrl && !isM3u8);
+});
+
+// 初始化HLS播放器
+const setupHlsPlayer = (video, url) => {
+  if (!Hls.isSupported()) {
+    console.error('浏览器不支持HLS');
+    ElMessage.error('您的浏览器不支持HLS播放，尝试切换播放模式');
+    fallbackToIframe(url);
+    return null;
+  }
+  
+  const hls = new Hls({
+    // HLS配置选项
+    maxBufferLength: 30,
+    maxMaxBufferLength: 60,
+    maxBufferSize: 60 * 1000 * 1000, // 60MB
+    maxBufferHole: 0.5,
+    lowLatencyMode: false,
+    // 增加错误恢复尝试次数
+    manifestLoadingMaxRetry: 4,
+    levelLoadingMaxRetry: 4,
+    fragLoadingMaxRetry: 4
+  });
+  
+  hlsInstance.value = hls;
+  
+  // 处理可能被封锁的域名
+  let hlsUrl = url;
+  const { source } = route.params;
+  if (source === 'huawei' && hlsUrl.includes('m3u.nikanba.live')) {
+    hlsUrl = hlsUrl.replace('m3u.nikanba.live', 'cos.m3u8hw8.com');
+    console.log('HLS加载 - 华为源域名替换:', hlsUrl);
+  }
+
+  // 加载资源并附加到视频元素
+  hls.loadSource(hlsUrl);
+  hls.attachMedia(video);
+  
+  // 设置HLS事件监听
+  hls.on(Hls.Events.MANIFEST_PARSED, () => {
+    console.log('HLS 清单解析完成');
+    video.play().catch(error => {
+      console.warn('自动播放失败，需要用户交互:', error);
+    });
+  });
+  
+  hls.on(Hls.Events.MANIFEST_LOADED, () => {
+    console.log('HLS 清单加载完成');
+  });
+  
+  // 监听缓冲事件
+  hls.on(Hls.Events.BUFFER_CREATED, () => {
+    console.log('HLS 缓冲区创建');
+  });
+  
+  hls.on(Hls.Events.BUFFER_APPENDING, () => {
+    console.log('HLS 正在添加缓冲数据');
+  });
+  
+  // 错误处理
+  hls.on(Hls.Events.ERROR, (event, data) => {
+    console.error('HLS 错误类型:', data.type, '详情:', data.details, '致命:', data.fatal);
+    
+    if (data.fatal) {
+      console.error('HLS 致命错误:', data);
+      switch (data.type) {
+        case Hls.ErrorTypes.NETWORK_ERROR:
+          // 网络错误处理
+          if (data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR || 
+              data.details === Hls.ErrorDetails.MANIFEST_LOAD_TIMEOUT ||
+              data.details === Hls.ErrorDetails.MANIFEST_PARSING_ERROR || 
+              data.details === Hls.ErrorDetails.LEVEL_LOAD_ERROR) {
+            console.log('HLS清单加载/解析错误，尝试切换播放模式:', data.details);
+            hls.destroy();
+            fallbackToIframe(url);
+          } else {
+            console.log('网络错误，尝试重新加载:', data.details);
+            ElMessage.warning('视频加载出错，正在尝试重新加载...');
+            setTimeout(() => {
+              hls.startLoad();
+            }, 1000);
+          }
+          break;
+          
+        case Hls.ErrorTypes.MEDIA_ERROR:
+          console.log('媒体错误，尝试恢复:', data.details);
+          ElMessage.warning('视频播放出错，正在尝试恢复...');
+          
+          // 尝试多次恢复媒体错误
+          if (data.details === Hls.ErrorDetails.BUFFER_STALLED_ERROR) {
+            // 缓冲卡顿错误
+            hls.recoverMediaError();
+          } else {
+            hls.recoverMediaError();
+            // 如果恢复不成功，可以考虑销毁并重新创建
+            setTimeout(() => {
+              if (player.value && player.value.video) {
+                // 捕获可能的播放错误
+                player.value.video.play().catch(() => {
+                  console.log('恢复后播放失败，尝试切换播放模式');
+                  hls.destroy();
+                  fallbackToIframe(url);
+                });
+              }
+            }, 1000);
+          }
+          break;
+          
+        default:
+          // 其他致命错误，切换到iframe播放
+          console.error('无法恢复的HLS错误，切换到iframe播放');
+          hls.destroy();
+          fallbackToIframe(url);
+          break;
+      }
+    } else {
+      // 非致命错误，记录但继续播放
+      console.warn('HLS非致命错误:', data.details);
+      // 如果是自动级别切换失败，可以尝试手动设置级别
+      if (data.details === Hls.ErrorDetails.LEVEL_SWITCH_ERROR) {
+        const currentLevel = hls.currentLevel;
+        const levels = hls.levels;
+        if (levels && levels.length > 1 && currentLevel > 0) {
+          console.log('尝试切换到较低清晰度');
+          hls.currentLevel = currentLevel - 1;
+        }
+      }
+    }
+  });
+  
+  return hls;
+};
+
+// 回退到iframe播放
+const fallbackToIframe = (url) => {
+  try {
+    console.log('切换到iframe播放模式:', url);
+    
+    // 清理现有的HLS实例
+    if (hlsInstance.value) {
+      hlsInstance.value.destroy();
+      hlsInstance.value = null;
+    }
+    
+    // 创建iframe元素
+    const iframe = document.createElement('iframe');
+    iframe.src = url;
+    iframe.width = '100%';
+    iframe.height = '100%';
+    iframe.frameBorder = '0';
+    iframe.allowFullscreen = true;
+    iframe.style.position = 'absolute';
+    iframe.style.top = '0';
+    iframe.style.left = '0';
+    iframe.style.backgroundColor = '#000';
+    
+    // 清除当前播放器容器并添加iframe
+    const container = document.getElementById('dplayer');
+    if (container) {
+      container.innerHTML = '';
+      container.appendChild(iframe);
+      
+      // 通知用户
+      ElMessage({
+        message: '已切换到备用播放模式',
+        type: 'info',
+        duration: 2000
+      });
+    } else {
+      throw new Error('找不到播放器容器');
+    }
+  } catch (error) {
+    console.error('回退到iframe失败:', error);
+    // ElMessage.error('视频播放失败，请尝试其他播放源');
+    
+    // 尝试最后的备用方案：原生video元素
+    try {
+      const video = document.createElement('video');
+      video.src = url;
+      video.controls = true;
+      video.autoplay = true;
+      video.width = '100%';
+      video.height = '100%';
+      video.style.position = 'absolute';
+      video.style.top = '0';
+      video.style.left = '0';
+      video.style.backgroundColor = '#000';
+      
+      const container = document.getElementById('dplayer');
+      if (container) {
+        container.innerHTML = '';
+        container.appendChild(video);
+        
+        ElMessage({
+          message: '已切换到原生播放模式',
+          type: 'info',
+          duration: 2000
+        });
+      }
+    } catch (videoErr) {
+      console.error('原生视频回退失败:', videoErr);
+    }
+  }
+};
+
 // 初始化播放器
 const initPlayer = (url) => {
   console.log('初始化播放器，URL:', url);
@@ -182,192 +423,42 @@ const initPlayer = (url) => {
     console.log('播放器初始化 - 华为源域名替换:', processedUrl);
   }
 
-  // 检查是否是速播源、华为源、急速源或360源的直链或iframe链接
-  const isDirectUrl = !processedUrl.includes('.m3u8') && 
-                    (processedUrl.includes('subokk.com') || 
-                     processedUrl.includes('play.subo') || 
-                     processedUrl.includes('subo') ||
-                     processedUrl.includes('cjhwba.com') ||
-                     processedUrl.includes('huawei') ||
-                     processedUrl.includes('jisuzy.com') ||
-                     processedUrl.includes('jisu') ||
-                     processedUrl.includes('360zy') ||
-                     processedUrl.match(/\.(mp4|avi|mkv|rmvb|flv)$/i));
-  
-  if (isDirectUrl) {
-    console.log('检测到非HLS链接，使用iframe直接播放:', processedUrl);
-    // 使用iframe直接播放视频
-    const iframe = document.createElement('iframe');
-    iframe.src = processedUrl;
-    iframe.width = '100%';
-    iframe.height = '100%';
-    iframe.frameBorder = '0';
-    iframe.allowFullscreen = true;
-    iframe.style.position = 'absolute';
-    iframe.style.top = '0';
-    iframe.style.left = '0';
-    
-    container.innerHTML = '';
-    container.appendChild(iframe);
+  // 使用计算属性检查是否应该使用iframe直接播放
+  if (isDirectUrl.value) {
+    console.log('检测到直接媒体文件或平台直链，使用iframe直接播放:', processedUrl);
+    fallbackToIframe(processedUrl);
     return;
   }
 
   try {
-    console.log('创建新的播放器实例');
+    console.log('创建新的播放器实例，使用HLS播放器');
     
-    // 检查浏览器是否支持 HLS
-    if (Hls.isSupported()) {
-      console.log('浏览器支持 HLS');
-      const options = {
-        container,
-        video: {
-          url: processedUrl,
-          type: 'customHls',
-          customType: {
-            customHls: function (video, player) {
-              const hls = new Hls();
-              hlsInstance.value = hls; // 保存 HLS 实例引用
-
-              // 处理可能被封锁的域名
-              let hlsUrl = video.src;
-              if (source === 'huawei' && hlsUrl.includes('m3u.nikanba.live')) {
-                hlsUrl = hlsUrl.replace('m3u.nikanba.live', 'cos.m3u8hw8.com');
-                console.log('HLS加载 - 华为源域名替换:', hlsUrl);
-              }
-
-              hls.loadSource(hlsUrl);
-              hls.attachMedia(video);
-              
-              hls.on(Hls.Events.MANIFEST_PARSED, () => {
-                console.log('HLS 清单解析完成');
-                video.play();
-              });
-              
-              hls.on(Hls.Events.MANIFEST_LOADED, () => {
-                console.log('HLS 清单加载完成');
-              });
-              
-              hls.on(Hls.Events.ERROR, (event, data) => {
-                console.error('HLS 错误类型:', data.type, '详情:', data.details, '致命:', data.fatal);
-                
-                if (data.fatal) {
-                  console.error('HLS 致命错误:', data);
-                  switch (data.type) {
-                    case Hls.ErrorTypes.NETWORK_ERROR:
-                      // 检查是否是清单解析错误（可能是非HLS链接或格式不正确）
-                      if (data.details === 'manifestParsingError') {
-                        ElMessage.error('视频源格式不正确，尝试使用iframe直接播放');
-                        
-                        // 尝试直接使用iframe播放
-                        try {
-                          const videoElement = document.createElement('iframe');
-                          videoElement.src = processedUrl;
-                          videoElement.width = '100%';
-                          videoElement.height = '100%';
-                          videoElement.frameBorder = '0';
-                          videoElement.allowFullscreen = true;
-                          videoElement.style.position = 'absolute';
-                          videoElement.style.top = '0';
-                          videoElement.style.left = '0';
-                          
-                          // 清除当前播放器并替换为iframe
-                          const container = document.getElementById('dplayer');
-                          container.innerHTML = '';
-                          container.appendChild(videoElement);
-                          
-                          // 销毁HLS实例
-                          hls.destroy();
-                        } catch (err) {
-                          console.error('iframe回退失败:', err);
-                          ElMessage.error('视频播放失败，请尝试其他播放源');
-                        }
-                      } else if (data.details === 'manifestLoadError' || data.details === 'levelLoadError') {
-                        // 如果是速播源或华为源，尝试使用直接iframe嵌入
-                        if (source === 'subo' || source === 'huawei') {
-                          ElMessage.error('视频加载失败，尝试直接嵌入播放');
-                          try {
-                            const videoElement = document.createElement('iframe');
-                            videoElement.src = processedUrl;
-                            videoElement.width = '100%';
-                            videoElement.height = '100%';
-                            videoElement.frameBorder = '0';
-                            videoElement.allowFullscreen = true;
-                            videoElement.style.position = 'absolute';
-                            videoElement.style.top = '0';
-                            videoElement.style.left = '0';
-                            
-                            // 清除当前播放器并替换为iframe
-                            const container = document.getElementById('dplayer');
-                            container.innerHTML = '';
-                            container.appendChild(videoElement);
-                            
-                            // 销毁HLS实例
-                            hls.destroy();
-                          } catch (err) {
-                            console.error('iframe回退失败:', err);
-                            ElMessage.error('视频播放失败，请尝试其他播放源');
-                          }
-                        } else {
-                          ElMessage.error('视频加载失败，请检查网络连接');
-                          hls.startLoad();
-                        }
-                      } else {
-                        ElMessage.error('视频加载失败，请检查网络连接');
-                        hls.startLoad();
-                      }
-                      break;
-                    case Hls.ErrorTypes.MEDIA_ERROR:
-                      ElMessage.error('视频解码错误，尝试恢复');
-                      hls.recoverMediaError();
-                      break;
-                    default:
-                      ElMessage.error('视频播放错误，请刷新页面重试');
-                      hls.destroy();
-                      break;
-                  }
-                }
-              });
-            }
+    const options = {
+      container,
+      video: {
+        url: processedUrl,
+        type: 'customHls',
+        customType: {
+          customHls: function (video, player) {
+            setupHlsPlayer(video, processedUrl);
           }
-        },
-        autoplay: true,
-        theme: '#409eff',
-        lang: 'zh-cn',
-        screenshot: true,
-        hotkey: true,
-        preload: 'auto',
-        volume: 0.7,
-      };
+        }
+      },
+      autoplay: true,
+      theme: '#409eff',
+      lang: 'zh-cn',
+      screenshot: true,
+      hotkey: true,
+      preload: 'auto',
+      volume: 0.7,
+    };
 
-      player.value = new DPlayer(options);
-    } else if (container.canPlayType('application/vnd.apple.mpegurl')) {
-      console.log('浏览器原生支持 HLS');
-      const options = {
-        container,
-        video: {
-          url: processedUrl,
-          type: 'auto'
-        },
-        autoplay: true,
-        theme: '#409eff',
-        lang: 'zh-cn',
-        screenshot: true,
-        hotkey: true,
-        preload: 'auto',
-        volume: 0.7,
-      };
-
-      player.value = new DPlayer(options);
-    } else {
-      console.error('浏览器不支持 HLS');
-      ElMessage.error('您的浏览器不支持播放此视频');
-      return;
-    }
+    player.value = new DPlayer(options);
 
     // 监听播放器事件
     player.value.on('error', (error) => {
       console.error('播放器错误:', error);
-      // ElMessage.error('视频加载失败，请稍后重试');
+      fallbackToIframe(processedUrl);
     });
 
     player.value.on('loadeddata', () => {
@@ -385,6 +476,7 @@ const initPlayer = (url) => {
   } catch (error) {
     console.error('初始化播放器失败:', error);
     ElMessage.error('初始化播放器失败: ' + error.message);
+    fallbackToIframe(processedUrl);
   }
 }
 
@@ -412,25 +504,29 @@ const loadVideoInfo = async () => {
     
     // 根据播放源选择不同的API端点
     let apiEndpoint = '/api';
+    let sourceName = '默认';
+    
     if (source === 'ikun') {
       apiEndpoint = '/ikun';
-      console.log('使用爱坤API端点获取数据');
+      sourceName = '爱坤';
     } else if (source === 'subo') {
       apiEndpoint = '/subo';
-      console.log('使用速播API端点获取数据, 影片ID:', id);
+      sourceName = '速播';
     } else if (source === 'huawei') {
       apiEndpoint = '/huawei';
-      console.log('使用华为API端点获取数据, 影片ID:', id);
+      sourceName = '华为';
     } else if (source === 'jisu') {
       apiEndpoint = '/jisu';
-      console.log('使用急速API端点获取数据, 影片ID:', id);
+      sourceName = '急速';
     } else if (source === '360') {
       apiEndpoint = '/360';
-      console.log('使用360API端点获取数据, 影片ID:', id);
+      sourceName = '360';
     } else if (source === 'wolong') {
       apiEndpoint = '/wolong';
-      console.log('使用卧龙API端点获取数据, 影片ID:', id);
+      sourceName = '卧龙';
     }
+    
+    console.log(`使用${sourceName}API端点获取数据, 影片ID:`, id);
     
     const response = await axios.get(`${apiEndpoint}/api.php/provide/vod/`, {
       params: {
@@ -536,10 +632,25 @@ const loadVideoInfo = async () => {
     // 处理播放源数据
     function processEpisodes(urlList) {
       episodes.value = urlList.map((item, index) => {
-        const [name, url] = item.split('$');
+        const parts = item.split('$');
+        let name = parts[0]?.trim() || `第${index + 1}集`;
+        let url = parts.length > 1 ? parts[1]?.trim() : '';
+        
+        // 特殊处理卧龙源，有时URL可能在name部分
+        if (source === 'wolong' && !url && parts[0]?.includes('http')) {
+          const lastDollarIndex = item.lastIndexOf('$');
+          if (lastDollarIndex !== -1) {
+            name = item.substring(0, lastDollarIndex).trim();
+            url = item.substring(lastDollarIndex + 1).trim();
+          } else {
+            name = `第${index + 1}集`;
+            url = parts[0].trim();
+          }
+        }
+        
         return {
-          name: name?.trim() || `第${index + 1}集`,
-          url: url?.trim() || '',
+          name: name || `第${index + 1}集`,
+          url: url || '',
           index
         };
       }).filter(episode => episode.url);
