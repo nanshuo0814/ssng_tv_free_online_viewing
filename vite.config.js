@@ -36,6 +36,11 @@ export default defineConfig({
         target: 'https://www.jisuzy.com',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/jisu/, '')
+      },
+      '/360': {
+        target: 'https://360zy5.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/360/, '')
       }
     }
   }

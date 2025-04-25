@@ -182,7 +182,7 @@ const initPlayer = (url) => {
     console.log('播放器初始化 - 华为源域名替换:', processedUrl);
   }
 
-  // 检查是否是速播源、华为源或急速源的直链或iframe链接
+  // 检查是否是速播源、华为源、急速源或360源的直链或iframe链接
   const isDirectUrl = !processedUrl.includes('.m3u8') && 
                     (processedUrl.includes('subokk.com') || 
                      processedUrl.includes('play.subo') || 
@@ -191,6 +191,7 @@ const initPlayer = (url) => {
                      processedUrl.includes('huawei') ||
                      processedUrl.includes('jisuzy.com') ||
                      processedUrl.includes('jisu') ||
+                     processedUrl.includes('360zy') ||
                      processedUrl.match(/\.(mp4|avi|mkv|rmvb|flv)$/i));
   
   if (isDirectUrl) {
@@ -423,6 +424,9 @@ const loadVideoInfo = async () => {
     } else if (source === 'jisu') {
       apiEndpoint = '/jisu';
       console.log('使用急速API端点获取数据, 影片ID:', id);
+    } else if (source === '360') {
+      apiEndpoint = '/360';
+      console.log('使用360API端点获取数据, 影片ID:', id);
     }
     
     const response = await axios.get(`${apiEndpoint}/api.php/provide/vod/`, {
@@ -432,8 +436,8 @@ const loadVideoInfo = async () => {
       }
     }).catch(error => {
       console.error('API请求失败:', error);
-      // 如果是爱坤源、速播源、华为源或急速源请求失败，尝试使用默认API
-      if (source === 'ikun' || source === 'subo' || source === 'huawei' || source === 'jisu') {
+      // 如果是爱坤源、速播源、华为源、急速源或360源请求失败，尝试使用默认API
+      if (source === 'ikun' || source === 'subo' || source === 'huawei' || source === 'jisu' || source === '360') {
         console.log('尝试使用默认API获取信息');
         return axios.get(`/api/api.php/provide/vod/`, {
           params: {
@@ -487,6 +491,14 @@ const loadVideoInfo = async () => {
         s.toLowerCase().trim().includes('jisu') || 
         s.toLowerCase().trim().includes('jisuyun') || 
         s.toLowerCase().trim().includes('jism3u8')
+      );
+    } else if (source === '360') {
+      // 对于360源，查找包含360的源
+      sourceIndex = playFrom.findIndex(s => 
+        s.toLowerCase().trim() === '360' || 
+        s.toLowerCase().trim().includes('360') || 
+        s.toLowerCase().trim().includes('360yun') || 
+        s.toLowerCase().trim().includes('360m3u8')
       );
     } else {
       // 对于其他源，按照传入的source查找

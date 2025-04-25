@@ -281,6 +281,12 @@ function playEpisode(source, url, index) {
     console.log('使用急速源影片ID:', sourceId);
   }
   
+  // 如果是360源，使用360源的影片ID
+  if (currentSource.sourceKey === '360' && videozy360DetailInfo.value) {
+    sourceId = videozy360DetailInfo.value.vod_id;
+    console.log('使用360源影片ID:', sourceId);
+  }
+  
   // 统一使用内部播放页面
   router.push(`/play/${sourceId}/${index + 1}/${currentSource.sourceKey}`);
 }
@@ -345,6 +351,12 @@ function startPlay() {
         console.log('使用急速源影片ID:', sourceId);
       }
       
+      // 如果是360源，使用360源的影片ID
+      if (sourceToPlay.sourceKey === '360' && videozy360DetailInfo.value) {
+        sourceId = videozy360DetailInfo.value.vod_id;
+        console.log('使用360源影片ID:', sourceId);
+      }
+      
       // 统一使用内部播放页面
       router.push(`/play/${sourceId}/1/${sourceToPlay.sourceKey}`);
     } else {
@@ -387,6 +399,11 @@ const playLists = computed(() => {
         else if (sourceName.includes('jisu') || sourceName.includes('jisuyun') || 
                 sourceName.includes('jism3u8')) {
           displayName = '急速';
+        }
+        // 360源特殊处理
+        else if (sourceName.includes('360') || sourceName.includes('360m3u8') ||
+                sourceName.includes('360yun')) {
+          displayName = '360';
         }
         
         lists.push({
@@ -483,6 +500,27 @@ const playLists = computed(() => {
     }
   }
   
+  // 添加360播放源
+  if (videoInfo.value && videozy360PlayList.value.length > 0) {
+    // 检查是否已经有360源，避免重复添加
+    const has360Source = lists.some(list => list.source === '360');
+    
+    if (!has360Source) {
+      lists.push({
+        source: '360',
+        sourceKey: '360', // 添加sourceKey用于识别
+        episodes: videozy360PlayList.value.map((episode, index) => {
+          return {
+            name: episode.name || `第${index + 1}集`,
+            url: episode.url || '',
+            index: index,
+            id: episode.id || (videozy360DetailInfo.value ? videozy360DetailInfo.value.vod_id : null)
+          };
+        })
+      });
+    }
+  }
+  
   return lists;
 });
 
@@ -509,6 +547,12 @@ const jisuPlayList = ref([]);
 const jisuLoading = ref(false);
 const jisuLoaded = ref(false);
 const jisuDetailInfo = ref(null); // 存储急速源的详细信息
+
+// 360播放源的数据
+const videozy360PlayList = ref([]);
+const videozy360Loading = ref(false);
+const videozy360Loaded = ref(false);
+const videozy360DetailInfo = ref(null); // 存储360源的详细信息
 
 // 监听播放源变化
 watch(() => activePlaySource.value, async (newSource, oldSource) => {
@@ -611,11 +655,32 @@ watch(() => activePlaySource.value, async (newSource, oldSource) => {
       // 刷新DOM以确保内容显示
       await nextTick();
     }
+  } else if (currentSource.sourceKey === '360') {
+    // 如果是360源，则获取详细信息
+    currentSourceLoading.value = true;
+    try {
+      // 等待360源加载完毕
+      if (!videozy360Loaded.value) {
+        await fetch360Source();
+      }
+      
+      // 更新UI显示
+      if (videozy360DetailInfo.value) {
+        update360DetailDisplay();
+      }
+    } catch (error) {
+      console.error('切换到360源时出错:', error);
+    } finally {
+      currentSourceLoading.value = false;
+      // 刷新DOM以确保内容显示
+      await nextTick();
+    }
   } else {
-    // 如果是从爱坤源、速播源、华为源或急速源切换回其他源，恢复原始数据
+    // 如果是从爱坤源、速播源、华为源、急速源或360源切换回其他源，恢复原始数据
     if (oldSource) {
       const oldSourceKey = playLists.value.find(source => source.source === oldSource)?.sourceKey;
-      if (oldSourceKey === 'ikun' || oldSourceKey === 'subo' || oldSourceKey === 'huawei' || oldSourceKey === 'jisu') {
+      if (oldSourceKey === 'ikun' || oldSourceKey === 'subo' || oldSourceKey === 'huawei' || 
+          oldSourceKey === 'jisu' || oldSourceKey === '360') {
         if (originalVideoInfo.value) {
           console.log('从特殊源切换回来，恢复原始数据');
           videoInfo.value = { ...originalVideoInfo.value };
@@ -783,16 +848,6 @@ const fetchIkunSource = async () => {
   }
 };
 
-// 在加载视频详情后也加载各个资源
-watch(() => videoInfo.value, (newVal) => {
-  if (newVal) {
-    fetchIkunSource();
-    fetchSuboSource();
-    fetchHuaweiSource();
-    fetchJisuSource();
-  }
-});
-
 // 播放器URL
 const playerUrl = computed(() => {
   if (!currentPlayUrl.value) return '';
@@ -855,6 +910,9 @@ async function loadVideoDetail() {
       
       // 获取急速播放源
       await fetchJisuSource();
+      
+      // 获取360播放源
+      await fetch360Source();
       
       // 等待DOM更新
       await nextTick();
@@ -997,6 +1055,11 @@ const getSourceIcon = (sourceKey) => {
   else if (sourceKey === 'jisu' || sourceKey === '急速' || 
           sourceKey.includes('jisuyun') || sourceKey.includes('jism3u8')) {
     return 'Monitor';
+  }
+  // 360源使用Picture图标
+  else if (sourceKey === '360' || sourceKey.includes('360') ||
+          sourceKey.includes('360yun') || sourceKey.includes('360m3u8')) {
+    return 'Picture';
   }
   // 默认图标
   return 'VideoPlay';
@@ -1312,6 +1375,161 @@ const updateHuaweiDetailDisplay = () => {
   videoInfo.value = detailInfo;
 };
 
+// 获取匹配的360影片
+const get360MatchedMovie = async () => {
+  try {
+    const response = await axios.get(`/360/api.php/provide/vod/`, {
+      params: {
+        ac: 'videolist',
+        wd: videoInfo.value.vod_name
+      }
+    });
+    
+    if (response.data && response.data.code === 1 && response.data.list && response.data.list.length > 0) {
+      // 找到最匹配的影片
+      return response.data.list.find(item => 
+        item.vod_name === videoInfo.value.vod_name || 
+        (item.vod_sub && item.vod_sub.includes(videoInfo.value.vod_name))
+      ) || response.data.list[0];
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('获取360影片失败:', error);
+    return null;
+  }
+};
+
+// 获取360影片详情
+const get360MovieDetail = async (movieId) => {
+  try {
+    const response = await axios.get(`/360/api.php/provide/vod/`, {
+      params: {
+        ac: 'detail',
+        ids: movieId
+      }
+    });
+    
+    if (response.data && response.data.code === 1 && response.data.list && response.data.list.length > 0) {
+      return response.data.list[0];
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('获取360影片详情失败:', error);
+    return null;
+  }
+};
+
+// 解析360播放列表
+const parse360PlayList = (detail) => {
+  if (!detail || !detail.vod_play_from || !detail.vod_play_url) {
+    console.warn('360源：播放数据不完整');
+    return [];
+  }
+  
+  const playFrom = detail.vod_play_from.split(',');
+  const playUrl = detail.vod_play_url.split(',');
+  
+  // 默认使用第一个播放源
+  if (playFrom.length > 0 && playUrl.length > 0) {
+    const videoUrls = playUrl[0].split('#');
+    
+    return videoUrls.map((item, index) => {
+      const [name, url] = item.split('$');
+      return {
+        name: name?.trim() || `第${index + 1}集`,
+        url: url?.trim() || '',
+        index
+      };
+    }).filter(item => item.url);
+  }
+  
+  return [];
+};
+
+// 获取360源数据
+const fetch360Source = async () => {
+  if (videozy360Loaded.value || videozy360Loading.value) return;
+  
+  videozy360Loading.value = true;
+  videozy360PlayList.value = [];
+  
+  try {
+    // 保存原始影片信息，以便在切换回来时恢复
+    if (!originalVideoInfo.value) {
+      originalVideoInfo.value = { ...videoInfo.value };
+    }
+    
+    // 1. 先通过影片名称搜索匹配的影片
+    const matchedMovie = await get360MatchedMovie();
+    if (!matchedMovie) {
+      console.warn('360源：未找到匹配的影片');
+      return;
+    }
+    
+    console.log('360源：找到匹配影片', matchedMovie);
+    
+    // 2. 获取匹配影片的详情
+    const detailInfo = await get360MovieDetail(matchedMovie.vod_id);
+    if (!detailInfo) {
+      console.warn('360源：获取影片详情失败');
+      return;
+    }
+    
+    console.log('360源：获取到详细信息', detailInfo);
+    
+    // 3. 保存详情信息，用于展示
+    videozy360DetailInfo.value = detailInfo;
+    
+    // 4. 解析播放列表
+    const episodes = parse360PlayList(detailInfo);
+    console.log('360源：解析播放列表', episodes);
+    
+    if (episodes.length > 0) {
+      // 为每个剧集添加360源的影片ID
+      videozy360PlayList.value = episodes.map(episode => ({
+        ...episode,
+        id: detailInfo.vod_id // 添加360源的影片ID
+      }));
+      console.log('360源：完整播放列表', videozy360PlayList.value);
+    } else {
+      console.warn('360源：没有可用播放列表');
+    }
+  } catch (error) {
+    console.error('获取360源数据失败:', error);
+  } finally {
+    videozy360Loading.value = false;
+    videozy360Loaded.value = true;
+  }
+};
+
+// 更新360详情信息到UI
+const update360DetailDisplay = () => {
+  if (!videozy360DetailInfo.value || !originalVideoInfo.value) return;
+  
+  // 更新展示的影片信息，但保留原始ID等关键信息
+  const originalId = originalVideoInfo.value.vod_id;
+  const originalType = originalVideoInfo.value.type_id;
+  
+  // 保留原始的播放源信息
+  const originalPlayFrom = originalVideoInfo.value.vod_play_from;
+  const originalPlayUrl = originalVideoInfo.value.vod_play_url;
+  
+  // 临时存储详细信息，与原始信息合并
+  const detailInfo = {
+    ...videozy360DetailInfo.value,
+    vod_id: originalId, // 保留原始ID
+    type_id: originalType, // 保留原始类型
+    _source: '360', // 标记来源
+    vod_play_from: originalPlayFrom, // 保留原始播放源信息
+    vod_play_url: originalPlayUrl, // 保留原始播放URL信息
+  };
+  
+  // 更新视图上的信息
+  videoInfo.value = detailInfo;
+};
+
 // 获取匹配的速播影片
 const getSuboMatchedMovie = async () => {
   try {
@@ -1466,6 +1684,17 @@ const updateSuboDetailDisplay = () => {
   // 更新视图上的信息
   videoInfo.value = detailInfo;
 };
+
+// 在加载视频详情后也加载各个资源
+watch(() => videoInfo.value, (newVal) => {
+  if (newVal) {
+    fetchIkunSource();
+    fetchSuboSource();
+    fetchHuaweiSource();
+    fetchJisuSource();
+    fetch360Source();
+  }
+});
 </script>
 
 <style scoped>
