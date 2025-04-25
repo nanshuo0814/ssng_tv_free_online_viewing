@@ -37,16 +37,32 @@
       <div class="episode-header">
         <div class="title-row">
           <h2 class="video-title">{{ videoInfo?.vod_name }}</h2>
-          <el-button
-            class="sort-button"
-            @click="toggleEpisodeSort"
-            title="切换排序"
-          >
-            <el-icon>
-              <component :is="isDescending ? 'SortDown' : 'SortUp'" />
-            </el-icon>
-            {{ isDescending ? '降序' : '升序' }}
-          </el-button>
+          <div class="controls-row">
+            <el-select 
+              v-model="currentSource" 
+              placeholder="选择播放源" 
+              size="small"
+              @change="changePlaybackSource"
+              class="source-select"
+            >
+              <el-option 
+                v-for="sourceItem in availableSources" 
+                :key="sourceItem.value" 
+                :label="sourceItem.label" 
+                :value="sourceItem.value"
+              />
+            </el-select>
+            <el-button
+              class="sort-button"
+              @click="toggleEpisodeSort"
+              title="切换排序"
+            >
+              <el-icon>
+                <component :is="isDescending ? 'SortDown' : 'SortUp'" />
+              </el-icon>
+              {{ isDescending ? '降序' : '升序' }}
+            </el-button>
+          </div>
         </div>
         <div class="current-episode">当前播放：{{ currentEpisodeName }}</div>
       </div>
@@ -99,7 +115,116 @@ const error = ref(null)
 const hlsInstance = ref(null) // 添加 HLS 实例引用
 const isDescending = ref(false) // 排序状态
 
+// 播放源相关
+const currentSource = ref('')
+const availableSources = ref([
+  { label: '黑木耳', value: 'api' },  // 注意这里使用'api'作为黑木耳的值
+  { label: '爱坤', value: 'ikun' },
+  { label: '卧龙', value: 'wolong' },
+  { label: '360', value: '360' },
+  { label: '华为', value: 'huawei' },
+  { label: '急速', value: 'jisu' },
+  { label: '速播', value: 'subo' },
+])
+
 const historyStore = useHistoryStore()
+
+// 切换播放源
+const changePlaybackSource = async (newSource) => {
+  const { id, episode } = route.params;
+  loading.value = true;
+  
+  try {
+    // 先获取当前视频的名称，用于在新源中搜索
+    const videoName = videoInfo.value?.vod_name;
+    
+    if (!videoName) {
+      ElMessage.error('无法获取当前视频信息，无法切换播放源');
+      loading.value = false;
+      return;
+    }
+    
+    console.log(`正在切换到${newSource}播放源，搜索：${videoName}`);
+    
+    // 确定API端点
+    let apiEndpoint = '/api';
+    if (newSource === 'ikun') {
+      apiEndpoint = '/ikun';
+    } else if (newSource === 'subo') {
+      apiEndpoint = '/subo';
+    } else if (newSource === 'huawei') {
+      apiEndpoint = '/huawei';
+    } else if (newSource === 'jisu') {
+      apiEndpoint = '/jisu';
+    } else if (newSource === '360') {
+      apiEndpoint = '/360';
+    } else if (newSource === 'wolong') {
+      apiEndpoint = '/wolong';
+    }
+    
+    // 使用影片名称在新源中搜索对应的ID
+    const searchResponse = await axios.get(`${apiEndpoint}/api.php/provide/vod/`, {
+      params: {
+        ac: 'list',
+        wd: videoName
+      }
+    }).catch(error => {
+      console.error('搜索新源API失败:', error);
+      // 如果搜索失败尝试使用默认API
+      if (newSource !== 'api') {
+        console.log('尝试使用默认API搜索');
+        return axios.get(`/api/api.php/provide/vod/`, {
+          params: {
+            ac: 'list',
+            wd: videoName
+          }
+        });
+      }
+      throw error;
+    });
+    
+    if (!searchResponse.data || searchResponse.data.code !== 1 || !searchResponse.data.list || searchResponse.data.list.length === 0) {
+      // 如果在新源中找不到匹配的视频，使用原ID
+      console.warn(`在${newSource}源中未找到匹配的视频，使用原ID`);
+      ElMessage.warning(`未在${newSource}源中找到该视频，可能播放异常`);
+      router.push(`/play/${id}/${episode}/${newSource}`);
+      return;
+    }
+    
+    // 查找最匹配的结果
+    const results = searchResponse.data.list;
+    console.log(`在${newSource}源中找到${results.length}个匹配结果`);
+    
+    // 尝试找到完全匹配的视频名称
+    let matchedVideo = results.find(item => item.vod_name === videoName);
+    
+    // 如果没有完全匹配，选择第一个结果
+    if (!matchedVideo && results.length > 0) {
+      matchedVideo = results[0];
+      console.log(`未找到完全匹配，使用第一个结果: ${matchedVideo.vod_name}`);
+    }
+    
+    if (matchedVideo) {
+      const newId = matchedVideo.vod_id;
+      console.log(`找到匹配视频，ID: ${newId}，名称: ${matchedVideo.vod_name}`);
+      // 导航到新的播放源，使用新的ID
+      router.push(`/play/${newId}/1/${newSource}`);
+    } else {
+      // 如果仍然找不到，使用原ID
+      console.warn(`在${newSource}源中未找到匹配的视频，使用原ID`);
+      ElMessage.warning(`未在${newSource}源中找到该视频，可能播放异常`);
+      router.push(`/play/${id}/${episode}/${newSource}`);
+    }
+    
+  } catch (error) {
+    console.error('切换播放源时出错:', error);
+    ElMessage.error('切换播放源失败: ' + (error.message || '未知错误'));
+    // 出错时仍然尝试使用原ID切换
+    router.push(`/play/${id}/${episode}/${newSource}`);
+  } finally {
+    loading.value = false;
+  }
+}
 
 // 切换排序方式
 const toggleEpisodeSort = () => {
@@ -193,137 +318,6 @@ const isDirectUrl = computed(() => {
   return isDirectMedia || (isKnownDirectUrl && !isM3u8);
 });
 
-// 初始化HLS播放器
-const setupHlsPlayer = (video, url) => {
-  if (!Hls.isSupported()) {
-    console.error('浏览器不支持HLS');
-    ElMessage.error('您的浏览器不支持HLS播放，尝试切换播放模式');
-    fallbackToIframe(url);
-    return null;
-  }
-  
-  const hls = new Hls({
-    // HLS配置选项
-    maxBufferLength: 30,
-    maxMaxBufferLength: 60,
-    maxBufferSize: 60 * 1000 * 1000, // 60MB
-    maxBufferHole: 0.5,
-    lowLatencyMode: false,
-    // 增加错误恢复尝试次数
-    manifestLoadingMaxRetry: 4,
-    levelLoadingMaxRetry: 4,
-    fragLoadingMaxRetry: 4
-  });
-  
-  hlsInstance.value = hls;
-  
-  // 处理可能被封锁的域名
-  let hlsUrl = url;
-  const { source } = route.params;
-  if (source === 'huawei' && hlsUrl.includes('m3u.nikanba.live')) {
-    hlsUrl = hlsUrl.replace('m3u.nikanba.live', 'cos.m3u8hw8.com');
-    console.log('HLS加载 - 华为源域名替换:', hlsUrl);
-  }
-
-  // 加载资源并附加到视频元素
-  hls.loadSource(hlsUrl);
-  hls.attachMedia(video);
-  
-  // 设置HLS事件监听
-  hls.on(Hls.Events.MANIFEST_PARSED, () => {
-    console.log('HLS 清单解析完成');
-    video.play().catch(error => {
-      console.warn('自动播放失败，需要用户交互:', error);
-    });
-  });
-  
-  hls.on(Hls.Events.MANIFEST_LOADED, () => {
-    console.log('HLS 清单加载完成');
-  });
-  
-  // 监听缓冲事件
-  hls.on(Hls.Events.BUFFER_CREATED, () => {
-    console.log('HLS 缓冲区创建');
-  });
-  
-  hls.on(Hls.Events.BUFFER_APPENDING, () => {
-    console.log('HLS 正在添加缓冲数据');
-  });
-  
-  // 错误处理
-  hls.on(Hls.Events.ERROR, (event, data) => {
-    console.error('HLS 错误类型:', data.type, '详情:', data.details, '致命:', data.fatal);
-    
-    if (data.fatal) {
-      console.error('HLS 致命错误:', data);
-      switch (data.type) {
-        case Hls.ErrorTypes.NETWORK_ERROR:
-          // 网络错误处理
-          if (data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR || 
-              data.details === Hls.ErrorDetails.MANIFEST_LOAD_TIMEOUT ||
-              data.details === Hls.ErrorDetails.MANIFEST_PARSING_ERROR || 
-              data.details === Hls.ErrorDetails.LEVEL_LOAD_ERROR) {
-            console.log('HLS清单加载/解析错误，尝试切换播放模式:', data.details);
-            hls.destroy();
-            fallbackToIframe(url);
-          } else {
-            console.log('网络错误，尝试重新加载:', data.details);
-            ElMessage.warning('视频加载出错，正在尝试重新加载...');
-            setTimeout(() => {
-              hls.startLoad();
-            }, 1000);
-          }
-          break;
-          
-        case Hls.ErrorTypes.MEDIA_ERROR:
-          console.log('媒体错误，尝试恢复:', data.details);
-          ElMessage.warning('视频播放出错，正在尝试恢复...');
-          
-          // 尝试多次恢复媒体错误
-          if (data.details === Hls.ErrorDetails.BUFFER_STALLED_ERROR) {
-            // 缓冲卡顿错误
-            hls.recoverMediaError();
-          } else {
-            hls.recoverMediaError();
-            // 如果恢复不成功，可以考虑销毁并重新创建
-            setTimeout(() => {
-              if (player.value && player.value.video) {
-                // 捕获可能的播放错误
-                player.value.video.play().catch(() => {
-                  console.log('恢复后播放失败，尝试切换播放模式');
-                  hls.destroy();
-                  fallbackToIframe(url);
-                });
-              }
-            }, 1000);
-          }
-          break;
-          
-        default:
-          // 其他致命错误，切换到iframe播放
-          console.error('无法恢复的HLS错误，切换到iframe播放');
-          hls.destroy();
-          fallbackToIframe(url);
-          break;
-      }
-    } else {
-      // 非致命错误，记录但继续播放
-      console.warn('HLS非致命错误:', data.details);
-      // 如果是自动级别切换失败，可以尝试手动设置级别
-      if (data.details === Hls.ErrorDetails.LEVEL_SWITCH_ERROR) {
-        const currentLevel = hls.currentLevel;
-        const levels = hls.levels;
-        if (levels && levels.length > 1 && currentLevel > 0) {
-          console.log('尝试切换到较低清晰度');
-          hls.currentLevel = currentLevel - 1;
-        }
-      }
-    }
-  });
-  
-  return hls;
-};
-
 // 回退到iframe播放
 const fallbackToIframe = (url) => {
   try {
@@ -335,8 +329,26 @@ const fallbackToIframe = (url) => {
       hlsInstance.value = null;
     }
     
+    // 检查URL是否可能导致下载
+    if (isLikelyDownloadUrl(url)) {
+      console.warn('检测到可能导致下载的URL，切换到内置播放器');
+      fallbackToNativePlayer(url);
+      return;
+    }
+    
     // 创建iframe元素
     const iframe = document.createElement('iframe');
+    
+    // 如果URL不是以http开头，可能是相对路径，添加适当的前缀
+    if (!url.startsWith('http') && !url.startsWith('//')) {
+      url = '//' + url;
+    }
+    
+    // 强制使用HTTPS或相对协议
+    if (url.startsWith('http:')) {
+      url = url.replace('http:', '//');
+    }
+    
     iframe.src = url;
     iframe.width = '100%';
     iframe.height = '100%';
@@ -346,6 +358,9 @@ const fallbackToIframe = (url) => {
     iframe.style.top = '0';
     iframe.style.left = '0';
     iframe.style.backgroundColor = '#000';
+    
+    // 添加sandbox属性限制iframe行为，禁止下载
+    iframe.sandbox = 'allow-scripts allow-same-origin allow-forms allow-presentation';
     
     // 清除当前播放器容器并添加iframe
     const container = document.getElementById('dplayer');
@@ -364,35 +379,116 @@ const fallbackToIframe = (url) => {
     }
   } catch (error) {
     console.error('回退到iframe失败:', error);
-    // ElMessage.error('视频播放失败，请尝试其他播放源');
-    
     // 尝试最后的备用方案：原生video元素
-    try {
-      const video = document.createElement('video');
+    fallbackToNativePlayer(url);
+  }
+};
+
+// 判断URL是否可能导致下载
+const isLikelyDownloadUrl = (url) => {
+  // 检查URL是否包含常见的媒体文件扩展名
+  const mediaExtensions = /\.(mp4|m4v|mkv|avi|mov|flv|wmv|mpg|mpeg|m3u8|ts)$/i;
+  const hasMediaExtension = mediaExtensions.test(url);
+  
+  // 检查是否包含可能导致下载的关键字
+  const downloadKeywords = /(download|attachment|file)/i;
+  const hasDownloadKeywords = downloadKeywords.test(url);
+  
+  // 判断是不是直链媒体（mp4等）
+  const isDirectMedia = /\.(mp4|avi|mkv|rmvb|flv|mov)$/i.test(url);
+  
+  // 如果是直链媒体或者包含下载关键字，可能会触发下载
+  return isDirectMedia || hasDownloadKeywords;
+};
+
+// 使用原生video播放器作为最后的备用方案
+const fallbackToNativePlayer = (url) => {
+  try {
+    console.log('切换到原生播放器:', url);
+    
+    const video = document.createElement('video');
+    video.controls = true;
+    video.autoplay = true;
+    video.width = '100%';
+    video.height = '100%';
+    video.style.position = 'absolute';
+    video.style.top = '0';
+    video.style.left = '0';
+    video.style.backgroundColor = '#000';
+    
+    // 对于m3u8文件，如果浏览器支持HLS，尝试直接播放
+    if (url.toLowerCase().includes('.m3u8') && video.canPlayType('application/vnd.apple.mpegurl')) {
       video.src = url;
-      video.controls = true;
-      video.autoplay = true;
-      video.width = '100%';
-      video.height = '100%';
-      video.style.position = 'absolute';
-      video.style.top = '0';
-      video.style.left = '0';
-      video.style.backgroundColor = '#000';
-      
-      const container = document.getElementById('dplayer');
-      if (container) {
-        container.innerHTML = '';
-        container.appendChild(video);
-        
-        ElMessage({
-          message: '已切换到原生播放模式',
-          type: 'info',
-          duration: 2000
-        });
-      }
-    } catch (videoErr) {
-      console.error('原生视频回退失败:', videoErr);
+    } 
+    // 对于直链媒体文件，直接设置src
+    else if (/\.(mp4|webm|ogg)$/i.test(url)) {
+      video.src = url;
+    } 
+    // 对于其他未知格式，使用source元素尝试多种格式
+    else {
+      const source = document.createElement('source');
+      source.src = url;
+      source.type = getMediaTypeFromUrl(url);
+      video.appendChild(source);
     }
+    
+    const container = document.getElementById('dplayer');
+    if (container) {
+      container.innerHTML = '';
+      container.appendChild(video);
+      
+      // 添加播放失败处理
+      video.onerror = () => {
+        console.error('原生播放器播放失败:', video.error);
+        container.innerHTML = `
+          <div style="position:absolute; top:0; left:0; width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; background-color:#000; color:#fff; text-align:center; padding:20px;">
+            <h3>播放失败</h3>
+            <p>当前视频无法播放，请尝试更换播放源或选择其他视频。</p>
+            <p style="font-size:12px; margin-top:10px; opacity:0.7;">错误信息: ${video.error ? video.error.message : '未知错误'}</p>
+          </div>
+        `;
+      };
+      
+      ElMessage({
+        message: '已切换到原生播放模式',
+        type: 'info',
+        duration: 2000
+      });
+    }
+  } catch (videoErr) {
+    console.error('原生视频回退失败:', videoErr);
+    showPlaybackErrorMessage();
+  }
+};
+
+// 从URL中猜测媒体类型
+const getMediaTypeFromUrl = (url) => {
+  if (url.toLowerCase().includes('.m3u8')) return 'application/vnd.apple.mpegurl';
+  if (url.toLowerCase().includes('.mp4')) return 'video/mp4';
+  if (url.toLowerCase().includes('.webm')) return 'video/webm';
+  if (url.toLowerCase().includes('.ogg')) return 'video/ogg';
+  if (url.toLowerCase().includes('.ts')) return 'video/mp2t';
+  return 'video/mp4'; // 默认为MP4
+};
+
+// 显示播放错误信息
+const showPlaybackErrorMessage = () => {
+  const container = document.getElementById('dplayer');
+  if (container) {
+    container.innerHTML = `
+      <div style="position:absolute; top:0; left:0; width:100%; height:100%; display:flex; align-items:center; justify-content:center; background-color:#000; color:#fff; text-align:center; padding:20px;">
+        <div>
+          <h3>播放失败</h3>
+          <p>当前视频无法播放，请尝试更换播放源或选择其他视频。</p>
+        </div>
+      </div>
+    `;
+    
+    ElMessage({
+      message: '视频播放失败，请更换播放源',
+      type: 'error',
+      duration: 3000
+    });
   }
 };
 
@@ -411,7 +507,7 @@ const initPlayer = (url) => {
   const container = document.getElementById('dplayer');
   if (!container) {
     console.error('找不到播放器容器元素');
-    ElMessage.error('播放器初始化失败：找不到容器');
+    // ElMessage.error('播放器初始化失败：找不到容器');
     return;
   }
 
@@ -423,8 +519,15 @@ const initPlayer = (url) => {
     console.log('播放器初始化 - 华为源域名替换:', processedUrl);
   }
 
+  // 检查是否是需要下载的URL
+  if (isLikelyDownloadUrl(processedUrl)) {
+    console.log('检测到可能导致下载的媒体文件，使用原生播放器播放:', processedUrl);
+    fallbackToNativePlayer(processedUrl);
+    return;
+  }
+
   // 使用计算属性检查是否应该使用iframe直接播放
-  if (isDirectUrl.value) {
+  if (isDirectUrl.value && !isLikelyDownloadUrl(processedUrl)) {
     console.log('检测到直接媒体文件或平台直链，使用iframe直接播放:', processedUrl);
     fallbackToIframe(processedUrl);
     return;
@@ -458,7 +561,7 @@ const initPlayer = (url) => {
     // 监听播放器事件
     player.value.on('error', (error) => {
       console.error('播放器错误:', error);
-      fallbackToIframe(processedUrl);
+      fallbackToNativePlayer(processedUrl);
     });
 
     player.value.on('loadeddata', () => {
@@ -476,9 +579,255 @@ const initPlayer = (url) => {
   } catch (error) {
     console.error('初始化播放器失败:', error);
     ElMessage.error('初始化播放器失败: ' + error.message);
-    fallbackToIframe(processedUrl);
+    fallbackToNativePlayer(processedUrl);
   }
 }
+
+// 修改HLS播放器中的错误处理，减少不必要的回退
+const setupHlsPlayer = (video, url) => {
+  if (!Hls.isSupported()) {
+    console.error('浏览器不支持HLS');
+    ElMessage.error('您的浏览器不支持HLS播放，尝试切换播放模式');
+    fallbackToNativePlayer(url);  // 改用原生播放器而不是iframe
+    return null;
+  }
+  
+  const hls = new Hls({
+    // HLS配置选项
+    maxBufferLength: 60,                // 增加缓冲区长度
+    maxMaxBufferLength: 90,             // 增加最大缓冲区长度
+    maxBufferSize: 100 * 1000 * 1000,   // 增加到100MB以应对长视频
+    maxBufferHole: 1,                   // 增加缓冲区空洞容忍度到1秒
+    lowLatencyMode: false,
+    // 加载重试配置
+    manifestLoadingMaxRetry: 6,         // 增加清单加载重试次数
+    levelLoadingMaxRetry: 6,            // 增加级别加载重试次数
+    fragLoadingMaxRetry: 6,             // 增加片段加载重试次数
+    fragLoadingMaxRetryTimeout: 10000,  // 10秒超时时间
+    // 缓冲区空洞处理配置
+    highBufferWatchdogPeriod: 3,        // 高缓冲区监控周期（秒）
+    nudgeOffset: 0.3,                   // 缓冲区空洞推进偏移量
+    nudgeMaxRetry: 10,                  // 最大缓冲区推进尝试次数
+    // 增加缓冲容忍度，改善缓冲问题
+    maxStarvationDelay: 6,              // 最大饥饿延迟
+    maxLoadingDelay: 6,                 // 最大加载延迟
+    // 增加ABR（自适应比特率）配置以优化流媒体质量切换
+    abrEwmaFastLive: 5.0,
+    abrEwmaSlowLive: 9.0,
+    abrEwmaDefaultEstimate: 500000,     // 默认带宽估计为500kbps
+    startLevel: -1,                     // 自动选择起始清晰度
+    // 添加额外的参数来处理视频播放问题
+    appendErrorMaxRetry: 5,             // 最大附加错误重试次数
+    backBufferLength: 90,               // 90秒的回退缓冲区长度
+    liveDurationInfinity: true          // 处理直播流
+  });
+  
+  hlsInstance.value = hls;
+  
+  // 处理可能被封锁的域名
+  let hlsUrl = url;
+  const { source } = route.params;
+  if (source === 'huawei' && hlsUrl.includes('m3u.nikanba.live')) {
+    hlsUrl = hlsUrl.replace('m3u.nikanba.live', 'cos.m3u8hw8.com');
+    console.log('HLS加载 - 华为源域名替换:', hlsUrl);
+  }
+
+  // 加载资源并附加到视频元素
+  hls.loadSource(hlsUrl);
+  hls.attachMedia(video);
+  
+  // 跟踪连续错误次数，用于决定是否需要回退
+  let consecutiveErrorCount = 0;
+  let bufferHoleErrorCount = 0;
+  
+  // 设置HLS事件监听
+  hls.on(Hls.Events.MANIFEST_PARSED, () => {
+    console.log('HLS 清单解析完成');
+    video.play().catch(error => {
+      console.warn('自动播放失败，需要用户交互:', error);
+    });
+  });
+  
+  hls.on(Hls.Events.MANIFEST_LOADED, () => {
+    console.log('HLS 清单加载完成');
+  });
+  
+  // 监听缓冲事件
+  hls.on(Hls.Events.BUFFER_CREATED, () => {
+    console.log('HLS 缓冲区创建');
+  });
+  
+  hls.on(Hls.Events.BUFFER_APPENDING, () => {
+    console.log('HLS 正在添加缓冲数据');
+  });
+  
+  // 成功播放一段时间后重置错误计数
+  hls.on(Hls.Events.FRAG_BUFFERED, () => {
+    consecutiveErrorCount = 0;
+    bufferHoleErrorCount = 0;
+  });
+  
+  // 错误处理
+  hls.on(Hls.Events.ERROR, (event, data) => {
+    console.error('HLS 错误类型:', data.type, '详情:', data.details, '致命:', data.fatal);
+    
+    if (data.fatal) {
+      console.error('HLS 致命错误:', data);
+      consecutiveErrorCount++;
+      
+      // 只有在多次致命错误后才考虑回退
+      if (consecutiveErrorCount >= 3) {
+        switch (data.type) {
+          case Hls.ErrorTypes.NETWORK_ERROR:
+            // 网络错误处理
+            if (data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR || 
+                data.details === Hls.ErrorDetails.MANIFEST_LOAD_TIMEOUT ||
+                data.details === Hls.ErrorDetails.MANIFEST_PARSING_ERROR || 
+                data.details === Hls.ErrorDetails.LEVEL_LOAD_ERROR) {
+              console.log('HLS清单加载/解析错误，尝试切换播放模式:', data.details);
+              hls.destroy();
+              fallbackToNativePlayer(url);  // 改用原生播放器而不是iframe
+            } else {
+              console.log('网络错误，尝试重新加载:', data.details);
+              ElMessage.warning('视频加载出错，正在尝试重新加载...');
+              setTimeout(() => {
+                hls.startLoad();
+              }, 1000);
+            }
+            break;
+            
+          case Hls.ErrorTypes.MEDIA_ERROR:
+            console.log('媒体错误，尝试恢复:', data.details);
+            ElMessage.warning('视频播放出错，正在尝试恢复...');
+            
+            // 尝试多次恢复媒体错误
+            if (data.details === Hls.ErrorDetails.BUFFER_STALLED_ERROR) {
+              // 缓冲卡顿错误
+              hls.recoverMediaError();
+            } else {
+              hls.recoverMediaError();
+              // 如果恢复不成功，可以考虑销毁并重新创建
+              setTimeout(() => {
+                if (player.value && player.value.video) {
+                  // 捕获可能的播放错误
+                  player.value.video.play().catch(() => {
+                    console.log('恢复后播放失败，尝试切换播放模式');
+                    hls.destroy();
+                    fallbackToNativePlayer(url);  // 改用原生播放器而不是iframe
+                  });
+                }
+              }, 1000);
+            }
+            break;
+            
+          default:
+            // 其他致命错误，切换到原生播放器
+            console.error('无法恢复的HLS错误，切换到原生播放模式');
+            hls.destroy();
+            fallbackToNativePlayer(url);  // 改用原生播放器而不是iframe
+            break;
+        }
+      } else {
+        // 尝试恢复而不是立即回退
+        console.log(`第${consecutiveErrorCount}次致命错误，尝试恢复...`);
+        if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+          hls.recoverMediaError();
+        } else {
+          setTimeout(() => {
+            hls.startLoad();
+          }, 1000);
+        }
+      }
+    } else {
+      // 非致命错误，记录但继续播放
+      console.warn('HLS非致命错误:', data.details);
+      
+      // 处理缓冲空洞错误 (bufferSeekOverHole) - 这是一个常见的非致命错误
+      if (data.details === Hls.ErrorDetails.BUFFER_SEEK_OVER_HOLE) {
+        /* 
+         * bufferSeekOverHole 错误详解:
+         * 这个错误表示HLS播放器在视频播放时遇到了"缓冲区空洞"，即播放时间轴上存在一段没有数据的区域。
+         * 通常原因包括:
+         * 1. 网络波动导致某些视频片段加载失败或丢失
+         * 2. CDN服务质量问题，某些片段被损坏或无法访问
+         * 3. 视频源本身的问题，片段不连续
+         * 
+         * 这是一个非致命错误，HLS.js会尝试自动跳过这个空洞继续播放。
+         * 如果看到这个错误但播放正常，通常不需要担心。
+         * 如果反复出现，可能会导致播放卡顿。
+         */
+        const holeSize = data.hole || '未知';
+        console.log(`检测到视频缓冲空洞，大小: ${holeSize} 秒。这通常是由网络波动或视频源问题导致的，播放器会尝试自动跳过这个区域。`);
+        
+        bufferHoleErrorCount++;
+        
+        // 只有当缓冲空洞错误频繁出现才降低清晰度
+        if (bufferHoleErrorCount > 5 && hls.autoLevelEnabled && hls.currentLevel > 0) {
+          const currentLevelCount = hls.currentLevel;
+          const levels = hls.levels;
+          if (levels && levels.length > 1 && currentLevelCount > 0) {
+            console.log('检测到多次缓冲问题，尝试切换到较低清晰度以改善播放体验');
+            // 切换到低一级的清晰度
+            hls.nextLevel = currentLevelCount - 1;
+          }
+        }
+        
+        // 尝试主动修复缓冲问题
+        if (bufferHoleErrorCount > 10) {
+          console.log('缓冲空洞问题持续出现，尝试主动修复...');
+          // 重置当前缓冲区
+          video.currentTime = video.currentTime + 0.1;
+        }
+      }
+      // 如果是自动级别切换失败，可以尝试手动设置级别
+      else if (data.details === Hls.ErrorDetails.LEVEL_SWITCH_ERROR) {
+        const currentLevel = hls.currentLevel;
+        const levels = hls.levels;
+        if (levels && levels.length > 1 && currentLevel > 0) {
+          console.log('切换清晰度失败，尝试切换到较低清晰度');
+          hls.currentLevel = currentLevel - 1;
+        }
+      }
+      // 如果长时间处于缓冲状态，尝试恢复
+      else if (data.details === Hls.ErrorDetails.BUFFER_STALLED_ERROR) {
+        console.log('视频缓冲卡顿，尝试恢复播放');
+        // 尝试轻度恢复（不会完全重置播放器）
+        if (video.paused) {
+          video.play().catch(e => console.warn('恢复播放失败:', e));
+        } else {
+          // 如果视频已在播放，尝试轻微跳过当前位置
+          const currentTime = video.currentTime;
+          video.currentTime = currentTime + 0.1;
+        }
+      }
+      // 对于其他非致命错误，大多数情况下HLS.js会自行处理
+    }
+  });
+  
+  // 添加视频元素的事件监听，增强错误处理
+  video.addEventListener('stalled', () => {
+    console.log('视频卡顿 (stalled event)');
+    // 如果卡顿超过一定时间，可以考虑重新加载或降低清晰度
+  });
+  
+  video.addEventListener('waiting', () => {
+    console.log('视频等待加载 (waiting event)');
+  });
+  
+  video.addEventListener('error', (e) => {
+    console.error('视频元素错误:', e);
+    if (hls) {
+      // 尝试重新加载视频
+      hls.stopLoad();
+      setTimeout(() => {
+        hls.startLoad();
+        video.play().catch(err => console.warn('重新播放失败:', err));
+      }, 1000);
+    }
+  });
+  
+  return hls;
+};
 
 // 切换集数
 const switchEpisode = (episode) => {
@@ -498,13 +847,21 @@ const loadVideoInfo = async () => {
     const { id, episode, source } = route.params;
     console.log('加载视频信息，ID:', id, '剧集:', episode, '播放源:', source);
     
+    // 设置当前播放源
+    // 修复当播放源是默认源或heimuer时的处理
+    if (!source || source === 'heimuer') {
+      currentSource.value = 'api';  // 使用'api'作为黑木耳的值
+    } else {
+      currentSource.value = source;
+    }
+    
     if (!id) {
       throw new Error('视频ID不能为空');
     }
     
     // 根据播放源选择不同的API端点
     let apiEndpoint = '/api';
-    let sourceName = '默认';
+    let sourceName = '黑木耳';  // 修改默认源的显示名称
     
     if (source === 'ikun') {
       apiEndpoint = '/ikun';
@@ -872,6 +1229,16 @@ watch(() => route.params, (newParams) => {
   margin: 0;
 }
 
+.controls-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.source-select {
+  min-width: 120px;
+}
+
 .sort-button {
   display: flex;
   align-items: center;
@@ -950,6 +1317,17 @@ watch(() => route.params, (newParams) => {
 
   .episode-section {
     padding: 15px;
+  }
+  
+  .title-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  
+  .controls-row {
+    width: 100%;
+    justify-content: space-between;
   }
 
   .episode-list {
