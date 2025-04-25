@@ -803,16 +803,18 @@ onUnmounted(() => {
 
 /* 城市选择器样式 */
 .city-selector {
-  position: absolute;
-  top: calc(100% + 2px);
-  left: 0;
-  width: 320px;
+  position: fixed; /* 改为fixed定位 */
+  bottom: 60px; /* 距离底部导航栏60px */
+  left: 50%;
+  transform: translateX(-50%); /* 水平居中 */
+  width: 90%; /* 移动端宽度90% */
+  max-width: 320px;
   max-height: 480px;
   background-color: var(--background-color);
   border: 1px solid var(--border-color);
   border-radius: 4px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  z-index: 1001; /* 提高z-index确保不被其他元素遮挡 */
+  z-index: 2000; /* 提高z-index确保在底部导航栏之上 */
   overflow: hidden;
 }
 
@@ -907,7 +909,15 @@ onUnmounted(() => {
 
 @media (max-width: 992px) {
   .weather-display {
-    display: none; /* 在移动端隐藏天气显示 */
+    display: flex; /* 改为显示 */
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+  }
+  
+  .weather-text {
+    font-size: 12px; /* 移动端字体稍小 */
   }
 }
 </style> 

@@ -1998,6 +1998,7 @@ const playVideo = (episode) => {
 
 .back-button-container {
   padding: 16px;
+  padding-left: 0;
 }
 
 .back-button {
