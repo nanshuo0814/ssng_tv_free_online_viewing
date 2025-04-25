@@ -31,6 +31,11 @@ export default defineConfig({
         target: 'https://cjhwba.com',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/huawei/, '')
+      },
+      '/jisu': {
+        target: 'https://www.jisuzy.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/jisu/, '')
       }
     }
   }

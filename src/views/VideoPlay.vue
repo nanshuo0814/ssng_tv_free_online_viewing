@@ -182,13 +182,15 @@ const initPlayer = (url) => {
     console.log('播放器初始化 - 华为源域名替换:', processedUrl);
   }
 
-  // 检查是否是速播源或华为源的直链或iframe链接
+  // 检查是否是速播源、华为源或急速源的直链或iframe链接
   const isDirectUrl = !processedUrl.includes('.m3u8') && 
                     (processedUrl.includes('subokk.com') || 
                      processedUrl.includes('play.subo') || 
                      processedUrl.includes('subo') ||
                      processedUrl.includes('cjhwba.com') ||
                      processedUrl.includes('huawei') ||
+                     processedUrl.includes('jisuzy.com') ||
+                     processedUrl.includes('jisu') ||
                      processedUrl.match(/\.(mp4|avi|mkv|rmvb|flv)$/i));
   
   if (isDirectUrl) {
@@ -418,6 +420,9 @@ const loadVideoInfo = async () => {
     } else if (source === 'huawei') {
       apiEndpoint = '/huawei';
       console.log('使用华为API端点获取数据, 影片ID:', id);
+    } else if (source === 'jisu') {
+      apiEndpoint = '/jisu';
+      console.log('使用急速API端点获取数据, 影片ID:', id);
     }
     
     const response = await axios.get(`${apiEndpoint}/api.php/provide/vod/`, {
@@ -427,8 +432,8 @@ const loadVideoInfo = async () => {
       }
     }).catch(error => {
       console.error('API请求失败:', error);
-      // 如果是爱坤源、速播源或华为源请求失败，尝试使用默认API
-      if (source === 'ikun' || source === 'subo' || source === 'huawei') {
+      // 如果是爱坤源、速播源、华为源或急速源请求失败，尝试使用默认API
+      if (source === 'ikun' || source === 'subo' || source === 'huawei' || source === 'jisu') {
         console.log('尝试使用默认API获取信息');
         return axios.get(`/api/api.php/provide/vod/`, {
           params: {
@@ -471,10 +476,18 @@ const loadVideoInfo = async () => {
     // 获取指定源的播放列表
     let sourceIndex = -1;
     
-    // 针对爱坤源特殊处理
+    // 针对不同源特殊处理
     if (source === 'ikun') {
       // 对于爱坤源，优先查找ikm3u8
       sourceIndex = playFrom.findIndex(s => s.toLowerCase().trim() === 'ikm3u8');
+    } else if (source === 'jisu') {
+      // 对于急速源，查找包含jisu的源
+      sourceIndex = playFrom.findIndex(s => 
+        s.toLowerCase().trim() === 'jisu' || 
+        s.toLowerCase().trim().includes('jisu') || 
+        s.toLowerCase().trim().includes('jisuyun') || 
+        s.toLowerCase().trim().includes('jism3u8')
+      );
     } else {
       // 对于其他源，按照传入的source查找
       sourceIndex = playFrom.findIndex(s => s.toLowerCase().trim() === source.toLowerCase().trim());
@@ -492,94 +505,65 @@ const loadVideoInfo = async () => {
         throw new Error('没有可用的播放源');
       }
     } else {
-      if (!playUrl[sourceIndex]) {
-        throw new Error('播放地址列表为空');
-      }
-      
+      // 解析选中的播放源
       const urlList = playUrl[sourceIndex].split('#');
-      console.log('解析的URL列表:', urlList);
       processEpisodes(urlList);
     }
-
-    // 获取到视频信息后添加到历史记录
-    addToHistory();
+    
+    // 处理播放源数据
+    function processEpisodes(urlList) {
+      episodes.value = urlList.map((item, index) => {
+        const [name, url] = item.split('$');
+        return {
+          name: name?.trim() || `第${index + 1}集`,
+          url: url?.trim() || '',
+          index
+        };
+      }).filter(episode => episode.url);
+      
+      // 记录当前集数
+      const episodeIdx = parseInt(episode) - 1;
+      if (episodes.value.length > 0) {
+        if (episodeIdx >= 0 && episodeIdx < episodes.value.length) {
+          currentEpisode.value = episodes.value[episodeIdx];
+        } else {
+          currentEpisode.value = episodes.value[0];
+        }
+      }
+      
+      // 初始化播放器
+      if (currentEpisode.value && currentEpisode.value.url) {
+        initPlayer(currentEpisode.value.url);
+        
+        // 添加到播放历史
+        if (videoInfo.value) {
+          const historyItem = {
+            id: videoInfo.value.vod_id,
+            title: videoInfo.value.vod_name,
+            url: route.fullPath,
+            type: getVideoType(),
+            poster: videoInfo.value.vod_pic || '',
+            currentTime: 0,
+            episode: episode,
+            source: source,
+            episodeName: currentEpisode.value.name
+          };
+          
+          historyStore.addHistory(historyItem);
+        }
+      } else {
+        throw new Error('无有效播放地址');
+      }
+    }
+    
+    loading.value = false;
   } catch (error) {
     console.error('加载视频信息失败:', error);
-    ElMessage.error(error.message || '加载视频信息失败');
-  } finally {
     loading.value = false;
+    error.value = error.message || '加载失败';
+    ElMessage.error(error.value);
   }
-}
-
-// 处理剧集列表
-const processEpisodes = (urlList) => {
-  episodes.value = urlList.map((item, index) => {
-    const [name, url] = item.split('$');
-    if (!url) {
-      console.warn(`第${index + 1}集缺少播放地址`);
-      return null;
-    }
-    
-    // 处理URL，确保是有效的地址
-    let processedUrl = url.trim();
-    
-    // 对于速播源，可能需要特殊处理URL
-    const { source } = route.params;
-    if (source === 'subo' && !processedUrl.startsWith('http')) {
-      // 如果是相对路径，添加完整域名
-      if (processedUrl.startsWith('/')) {
-        processedUrl = `https://www.suboziyuan.net${processedUrl}`;
-      } else {
-        processedUrl = `https://www.suboziyuan.net/${processedUrl}`;
-      }
-    } else if (source === 'huawei' && !processedUrl.startsWith('http')) {
-      // 如果是相对路径，添加完整域名
-      if (processedUrl.startsWith('/')) {
-        processedUrl = `https://cjhwba.com${processedUrl}`;
-      } else {
-        processedUrl = `https://cjhwba.com/${processedUrl}`;
-      }
-    }
-    
-    // 特殊处理华为源中被封锁的域名
-    if (source === 'huawei' && processedUrl.includes('m3u.nikanba.live')) {
-      processedUrl = processedUrl.replace('m3u.nikanba.live', 'cos.m3u8hw8.com');
-      console.log('华为源域名替换: 将m3u.nikanba.live替换为cos.m3u8hw8.com');
-    }
-    
-    return {
-      name: name?.trim() || `第${index + 1}集`,
-      url: processedUrl,
-      index
-    };
-  }).filter(Boolean);
-  
-  console.log('解析的剧集列表:', episodes.value);
-  
-  if (episodes.value.length === 0) {
-    throw new Error('没有可用的剧集');
-  }
-
-  // 设置当前集数
-  const { episode } = route.params;
-  const episodeNumber = parseInt(episode) - 1;
-  console.log('目标剧集编号:', episodeNumber);
-  
-  if (isNaN(episodeNumber) || episodeNumber < 0 || episodeNumber >= episodes.value.length) {
-    console.warn('无效的剧集编号，使用第一集');
-    currentEpisode.value = episodes.value[0];
-  } else {
-    currentEpisode.value = episodes.value[episodeNumber];
-  }
-  
-  console.log('当前选中剧集:', currentEpisode.value);
-  
-  if (!currentEpisode.value.url) {
-    throw new Error('当前剧集缺少播放地址');
-  }
-  
-  initPlayer(currentEpisode.value.url);
-}
+};
 
 // 返回详情页
 // const goBack = () => {

@@ -275,6 +275,12 @@ function playEpisode(source, url, index) {
     console.log('使用华为源影片ID:', sourceId);
   }
   
+  // 如果是急速源，使用急速源的影片ID
+  if (currentSource.sourceKey === 'jisu' && jisuDetailInfo.value) {
+    sourceId = jisuDetailInfo.value.vod_id;
+    console.log('使用急速源影片ID:', sourceId);
+  }
+  
   // 统一使用内部播放页面
   router.push(`/play/${sourceId}/${index + 1}/${currentSource.sourceKey}`);
 }
@@ -333,6 +339,12 @@ function startPlay() {
         console.log('使用华为源影片ID:', sourceId);
       }
       
+      // 如果是急速源，使用急速源的影片ID
+      if (sourceToPlay.sourceKey === 'jisu' && jisuDetailInfo.value) {
+        sourceId = jisuDetailInfo.value.vod_id;
+        console.log('使用急速源影片ID:', sourceId);
+      }
+      
       // 统一使用内部播放页面
       router.push(`/play/${sourceId}/1/${sourceToPlay.sourceKey}`);
     } else {
@@ -366,9 +378,15 @@ const playLists = computed(() => {
         if (sourceName === 'heimuer' || sourceName === 'ikm3u8') {
           displayName = '黑木耳';
         } 
-        // 速播源特殊处理 - 扩展识别更多速播相关的源名称
-        else if (sourceName.includes('subyun') || sourceName.includes('subm3u8') || sourceName.includes('subo') || sourceName === 'sub') {
+        // 速播源特殊处理
+        else if (sourceName.includes('subyun') || sourceName.includes('subm3u8') || 
+                sourceName.includes('subo') || sourceName === 'sub') {
           displayName = '速播';
+        }
+        // 急速源特殊处理
+        else if (sourceName.includes('jisu') || sourceName.includes('jisuyun') || 
+                sourceName.includes('jism3u8')) {
+          displayName = '急速';
         }
         
         lists.push({
@@ -444,6 +462,27 @@ const playLists = computed(() => {
     }
   }
   
+  // 添加急速播放源
+  if (videoInfo.value && jisuPlayList.value.length > 0) {
+    // 检查是否已经有急速源，避免重复添加
+    const hasJisuSource = lists.some(list => list.source === '急速');
+    
+    if (!hasJisuSource) {
+      lists.push({
+        source: '急速',
+        sourceKey: 'jisu', // 添加sourceKey用于识别
+        episodes: jisuPlayList.value.map((episode, index) => {
+          return {
+            name: episode.name || `第${index + 1}集`,
+            url: episode.url || '',
+            index: index,
+            id: episode.id || (jisuDetailInfo.value ? jisuDetailInfo.value.vod_id : null)
+          };
+        })
+      });
+    }
+  }
+  
   return lists;
 });
 
@@ -464,6 +503,12 @@ const huaweiPlayList = ref([]);
 const huaweiLoading = ref(false);
 const huaweiLoaded = ref(false);
 const huaweiDetailInfo = ref(null); // 存储华为源的详细信息
+
+// 急速播放源的数据
+const jisuPlayList = ref([]);
+const jisuLoading = ref(false);
+const jisuLoaded = ref(false);
+const jisuDetailInfo = ref(null); // 存储急速源的详细信息
 
 // 监听播放源变化
 watch(() => activePlaySource.value, async (newSource, oldSource) => {
@@ -546,11 +591,31 @@ watch(() => activePlaySource.value, async (newSource, oldSource) => {
       // 刷新DOM以确保内容显示
       await nextTick();
     }
+  } else if (currentSource.sourceKey === 'jisu') {
+    // 如果是急速源，则获取详细信息
+    currentSourceLoading.value = true;
+    try {
+      // 等待急速源加载完毕
+      if (!jisuLoaded.value) {
+        await fetchJisuSource();
+      }
+      
+      // 更新UI显示
+      if (jisuDetailInfo.value) {
+        updateJisuDetailDisplay();
+      }
+    } catch (error) {
+      console.error('切换到急速源时出错:', error);
+    } finally {
+      currentSourceLoading.value = false;
+      // 刷新DOM以确保内容显示
+      await nextTick();
+    }
   } else {
-    // 如果是从爱坤源、速播源或华为源切换回其他源，恢复原始数据
+    // 如果是从爱坤源、速播源、华为源或急速源切换回其他源，恢复原始数据
     if (oldSource) {
       const oldSourceKey = playLists.value.find(source => source.source === oldSource)?.sourceKey;
-      if (oldSourceKey === 'ikun' || oldSourceKey === 'subo' || oldSourceKey === 'huawei') {
+      if (oldSourceKey === 'ikun' || oldSourceKey === 'subo' || oldSourceKey === 'huawei' || oldSourceKey === 'jisu') {
         if (originalVideoInfo.value) {
           console.log('从特殊源切换回来，恢复原始数据');
           videoInfo.value = { ...originalVideoInfo.value };
@@ -718,12 +783,13 @@ const fetchIkunSource = async () => {
   }
 };
 
-// 在加载视频详情后也加载爱坤资源和速播资源
+// 在加载视频详情后也加载各个资源
 watch(() => videoInfo.value, (newVal) => {
   if (newVal) {
     fetchIkunSource();
     fetchSuboSource();
     fetchHuaweiSource();
+    fetchJisuSource();
   }
 });
 
@@ -786,6 +852,9 @@ async function loadVideoDetail() {
       
       // 获取华为播放源
       await fetchHuaweiSource();
+      
+      // 获取急速播放源
+      await fetchJisuSource();
       
       // 等待DOM更新
       await nextTick();
@@ -924,14 +993,19 @@ const getSourceIcon = (sourceKey) => {
   else if (sourceKey === 'huawei' || sourceKey === '华为') {
     return 'Cellphone';
   }
+  // 急速源使用Monitor图标
+  else if (sourceKey === 'jisu' || sourceKey === '急速' || 
+          sourceKey.includes('jisuyun') || sourceKey.includes('jism3u8')) {
+    return 'Monitor';
+  }
   // 默认图标
   return 'VideoPlay';
 }
 
-// 获取匹配的速播影片
-const getSuboMatchedMovie = async () => {
+// 获取匹配的急速影片
+const getJisuMatchedMovie = async () => {
   try {
-    const response = await axios.get(`/subo/api.php/provide/vod/`, {
+    const response = await axios.get(`/jisu/api.php/provide/vod/`, {
       params: {
         ac: 'videolist',
         wd: videoInfo.value.vod_name
@@ -948,15 +1022,15 @@ const getSuboMatchedMovie = async () => {
     
     return null;
   } catch (error) {
-    console.error('获取速播影片失败:', error);
+    console.error('获取急速影片失败:', error);
     return null;
   }
 };
 
-// 获取速播影片详情
-const getSuboMovieDetail = async (movieId) => {
+// 获取急速影片详情
+const getJisuMovieDetail = async (movieId) => {
   try {
-    const response = await axios.get(`/subo/api.php/provide/vod/`, {
+    const response = await axios.get(`/jisu/api.php/provide/vod/`, {
       params: {
         ac: 'detail',
         ids: movieId
@@ -969,15 +1043,15 @@ const getSuboMovieDetail = async (movieId) => {
     
     return null;
   } catch (error) {
-    console.error('获取速播影片详情失败:', error);
+    console.error('获取急速影片详情失败:', error);
     return null;
   }
 };
 
-// 解析速播播放列表
-const parseSuboPlayList = (detail) => {
+// 解析急速播放列表
+const parseJisuPlayList = (detail) => {
   if (!detail || !detail.vod_play_from || !detail.vod_play_url) {
-    console.warn('速播源：播放数据不完整');
+    console.warn('急速源：播放数据不完整');
     return [];
   }
   
@@ -1001,12 +1075,12 @@ const parseSuboPlayList = (detail) => {
   return [];
 };
 
-// 获取速播源数据
-const fetchSuboSource = async () => {
-  if (suboLoaded.value || suboLoading.value) return;
+// 获取急速源数据
+const fetchJisuSource = async () => {
+  if (jisuLoaded.value || jisuLoading.value) return;
   
-  suboLoading.value = true;
-  suboPlayList.value = [];
+  jisuLoading.value = true;
+  jisuPlayList.value = [];
   
   try {
     // 保存原始影片信息，以便在切换回来时恢复
@@ -1015,51 +1089,51 @@ const fetchSuboSource = async () => {
     }
     
     // 1. 先通过影片名称搜索匹配的影片
-    const matchedMovie = await getSuboMatchedMovie();
+    const matchedMovie = await getJisuMatchedMovie();
     if (!matchedMovie) {
-      console.warn('速播源：未找到匹配的影片');
+      console.warn('急速源：未找到匹配的影片');
       return;
     }
     
-    console.log('速播源：找到匹配影片', matchedMovie);
+    console.log('急速源：找到匹配影片', matchedMovie);
     
     // 2. 获取匹配影片的详情
-    const detailInfo = await getSuboMovieDetail(matchedMovie.vod_id);
+    const detailInfo = await getJisuMovieDetail(matchedMovie.vod_id);
     if (!detailInfo) {
-      console.warn('速播源：获取影片详情失败');
+      console.warn('急速源：获取影片详情失败');
       return;
     }
     
-    console.log('速播源：获取到详细信息', detailInfo);
+    console.log('急速源：获取到详细信息', detailInfo);
     
     // 3. 保存详情信息，用于展示
-    suboDetailInfo.value = detailInfo;
+    jisuDetailInfo.value = detailInfo;
     
     // 4. 解析播放列表
-    const episodes = parseSuboPlayList(detailInfo);
-    console.log('速播源：解析播放列表', episodes);
+    const episodes = parseJisuPlayList(detailInfo);
+    console.log('急速源：解析播放列表', episodes);
     
     if (episodes.length > 0) {
-      // 为每个剧集添加速播源的影片ID
-      suboPlayList.value = episodes.map(episode => ({
+      // 为每个剧集添加急速源的影片ID
+      jisuPlayList.value = episodes.map(episode => ({
         ...episode,
-        id: detailInfo.vod_id // 添加速播源的影片ID
+        id: detailInfo.vod_id // 添加急速源的影片ID
       }));
-      console.log('速播源：完整播放列表', suboPlayList.value);
+      console.log('急速源：完整播放列表', jisuPlayList.value);
     } else {
-      console.warn('速播源：没有可用播放列表');
+      console.warn('急速源：没有可用播放列表');
     }
   } catch (error) {
-    console.error('获取速播源数据失败:', error);
+    console.error('获取急速源数据失败:', error);
   } finally {
-    suboLoading.value = false;
-    suboLoaded.value = true;
+    jisuLoading.value = false;
+    jisuLoaded.value = true;
   }
 };
 
-// 更新速播详情信息到UI
-const updateSuboDetailDisplay = () => {
-  if (!suboDetailInfo.value || !originalVideoInfo.value) return;
+// 更新急速详情信息到UI
+const updateJisuDetailDisplay = () => {
+  if (!jisuDetailInfo.value || !originalVideoInfo.value) return;
   
   // 更新展示的影片信息，但保留原始ID等关键信息
   const originalId = originalVideoInfo.value.vod_id;
@@ -1071,10 +1145,10 @@ const updateSuboDetailDisplay = () => {
   
   // 临时存储详细信息，与原始信息合并
   const detailInfo = {
-    ...suboDetailInfo.value,
+    ...jisuDetailInfo.value,
     vod_id: originalId, // 保留原始ID
     type_id: originalType, // 保留原始类型
-    _source: '速播', // 标记来源
+    _source: '急速', // 标记来源
     vod_play_from: originalPlayFrom, // 保留原始播放源信息
     vod_play_url: originalPlayUrl, // 保留原始播放URL信息
   };
@@ -1230,6 +1304,161 @@ const updateHuaweiDetailDisplay = () => {
     vod_id: originalId, // 保留原始ID
     type_id: originalType, // 保留原始类型
     _source: '华为', // 标记来源
+    vod_play_from: originalPlayFrom, // 保留原始播放源信息
+    vod_play_url: originalPlayUrl, // 保留原始播放URL信息
+  };
+  
+  // 更新视图上的信息
+  videoInfo.value = detailInfo;
+};
+
+// 获取匹配的速播影片
+const getSuboMatchedMovie = async () => {
+  try {
+    const response = await axios.get(`/subo/api.php/provide/vod/`, {
+      params: {
+        ac: 'videolist',
+        wd: videoInfo.value.vod_name
+      }
+    });
+    
+    if (response.data && response.data.code === 1 && response.data.list && response.data.list.length > 0) {
+      // 找到最匹配的影片
+      return response.data.list.find(item => 
+        item.vod_name === videoInfo.value.vod_name || 
+        (item.vod_sub && item.vod_sub.includes(videoInfo.value.vod_name))
+      ) || response.data.list[0];
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('获取速播影片失败:', error);
+    return null;
+  }
+};
+
+// 获取速播影片详情
+const getSuboMovieDetail = async (movieId) => {
+  try {
+    const response = await axios.get(`/subo/api.php/provide/vod/`, {
+      params: {
+        ac: 'detail',
+        ids: movieId
+      }
+    });
+    
+    if (response.data && response.data.code === 1 && response.data.list && response.data.list.length > 0) {
+      return response.data.list[0];
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('获取速播影片详情失败:', error);
+    return null;
+  }
+};
+
+// 解析速播播放列表
+const parseSuboPlayList = (detail) => {
+  if (!detail || !detail.vod_play_from || !detail.vod_play_url) {
+    console.warn('速播源：播放数据不完整');
+    return [];
+  }
+  
+  const playFrom = detail.vod_play_from.split(',');
+  const playUrl = detail.vod_play_url.split(',');
+  
+  // 默认使用第一个播放源
+  if (playFrom.length > 0 && playUrl.length > 0) {
+    const videoUrls = playUrl[0].split('#');
+    
+    return videoUrls.map((item, index) => {
+      const [name, url] = item.split('$');
+      return {
+        name: name?.trim() || `第${index + 1}集`,
+        url: url?.trim() || '',
+        index
+      };
+    }).filter(item => item.url);
+  }
+  
+  return [];
+};
+
+// 获取速播源数据
+const fetchSuboSource = async () => {
+  if (suboLoaded.value || suboLoading.value) return;
+  
+  suboLoading.value = true;
+  suboPlayList.value = [];
+  
+  try {
+    // 保存原始影片信息，以便在切换回来时恢复
+    if (!originalVideoInfo.value) {
+      originalVideoInfo.value = { ...videoInfo.value };
+    }
+    
+    // 1. 先通过影片名称搜索匹配的影片
+    const matchedMovie = await getSuboMatchedMovie();
+    if (!matchedMovie) {
+      console.warn('速播源：未找到匹配的影片');
+      return;
+    }
+    
+    console.log('速播源：找到匹配影片', matchedMovie);
+    
+    // 2. 获取匹配影片的详情
+    const detailInfo = await getSuboMovieDetail(matchedMovie.vod_id);
+    if (!detailInfo) {
+      console.warn('速播源：获取影片详情失败');
+      return;
+    }
+    
+    console.log('速播源：获取到详细信息', detailInfo);
+    
+    // 3. 保存详情信息，用于展示
+    suboDetailInfo.value = detailInfo;
+    
+    // 4. 解析播放列表
+    const episodes = parseSuboPlayList(detailInfo);
+    console.log('速播源：解析播放列表', episodes);
+    
+    if (episodes.length > 0) {
+      // 为每个剧集添加速播源的影片ID
+      suboPlayList.value = episodes.map(episode => ({
+        ...episode,
+        id: detailInfo.vod_id // 添加速播源的影片ID
+      }));
+      console.log('速播源：完整播放列表', suboPlayList.value);
+    } else {
+      console.warn('速播源：没有可用播放列表');
+    }
+  } catch (error) {
+    console.error('获取速播源数据失败:', error);
+  } finally {
+    suboLoading.value = false;
+    suboLoaded.value = true;
+  }
+};
+
+// 更新速播详情信息到UI
+const updateSuboDetailDisplay = () => {
+  if (!suboDetailInfo.value || !originalVideoInfo.value) return;
+  
+  // 更新展示的影片信息，但保留原始ID等关键信息
+  const originalId = originalVideoInfo.value.vod_id;
+  const originalType = originalVideoInfo.value.type_id;
+  
+  // 保留原始的播放源信息
+  const originalPlayFrom = originalVideoInfo.value.vod_play_from;
+  const originalPlayUrl = originalVideoInfo.value.vod_play_url;
+  
+  // 临时存储详细信息，与原始信息合并
+  const detailInfo = {
+    ...suboDetailInfo.value,
+    vod_id: originalId, // 保留原始ID
+    type_id: originalType, // 保留原始类型
+    _source: '速播', // 标记来源
     vod_play_from: originalPlayFrom, // 保留原始播放源信息
     vod_play_url: originalPlayUrl, // 保留原始播放URL信息
   };
