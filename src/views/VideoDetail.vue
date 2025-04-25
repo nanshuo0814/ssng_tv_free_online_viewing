@@ -981,20 +981,53 @@ async function loadVideoDetail() {
       // 等待DOM更新
       await nextTick();
       
-      // 自动选择第一个播放源和第一集
+      // 从URL获取播放源参数
+      const sourceFromUrl = route.query.source;
+      
+      // 自动选择播放源
       if (playLists.value.length > 0) {
         console.log('可用播放源数量:', playLists.value.length);
         
-        // 默认选择黑木耳源（如果存在）
-        const heimuerSource = playLists.value.find(source => 
-          source.source === '黑木耳' || source.sourceKey === 'heimuer' || source.sourceKey === 'ikm3u8'
-        );
-        
-        if (heimuerSource) {
-          activePlaySource.value = heimuerSource.source;
+        // 如果URL中有指定播放源，优先使用URL中的播放源
+        if (sourceFromUrl) {
+          const sourceMap = {
+            'api': '黑木耳',
+            'ikun': '爱坤',
+            'wolong': '卧龙',
+            '360': '360',
+            'huawei': '华为',
+            'jisu': '急速',
+            'subo': '速播'
+          };
+          
+          const sourceName = sourceMap[sourceFromUrl];
+          const sourceFromUrlExists = playLists.value.find(source => source.source === sourceName);
+          
+          if (sourceFromUrlExists) {
+            activePlaySource.value = sourceName;
+          } else {
+            // 如果指定的播放源不存在，使用默认逻辑
+            const heimuerSource = playLists.value.find(source => 
+              source.source === '黑木耳' || source.sourceKey === 'heimuer' || source.sourceKey === 'ikm3u8'
+            );
+            
+            if (heimuerSource) {
+              activePlaySource.value = heimuerSource.source;
+            } else {
+              activePlaySource.value = playLists.value[0].source;
+            }
+          }
         } else {
-          // 否则选择第一个可用源
-          activePlaySource.value = playLists.value[0].source;
+          // 如果URL中没有指定播放源，使用默认逻辑
+          const heimuerSource = playLists.value.find(source => 
+            source.source === '黑木耳' || source.sourceKey === 'heimuer' || source.sourceKey === 'ikm3u8'
+          );
+          
+          if (heimuerSource) {
+            activePlaySource.value = heimuerSource.source;
+          } else {
+            activePlaySource.value = playLists.value[0].source;
+          }
         }
         
         // 强制更新一下DOM

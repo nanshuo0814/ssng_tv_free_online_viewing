@@ -47,7 +47,7 @@
           v-for="item in filteredResults" 
           :key="item.id" 
           class="movie-card"
-          @click="router.push(`/video/detail/${item.id}`)"
+          @click="router.push(`/video/detail/${item.id}?source=${currentSource}`)"
         >
           <div class="movie-poster">
             <img 
@@ -304,7 +304,7 @@ const performSearch = async (query, resetResults = true) => {
     if (code === 1 && Array.isArray(list)) {
       // 转换API返回的数据格式
       const formattedResults = list.map(item => ({
-        id: item.vod_id,
+        id: currentSource.value === 'api' ? item.vod_id : null, // 只有黑木耳源保留原始ID
         title: item.vod_name,
         poster: item.vod_pic,
         score: item.vod_score,
@@ -316,8 +316,37 @@ const performSearch = async (query, resetResults = true) => {
         director: item.vod_director,
         description: item.vod_content,
         source: currentSource.value, // 添加播放源标识
-        isApiSource: true // 标记为API来源
+        isApiSource: true, // 标记为API来源
+        heimuer_id: currentSource.value === 'api' ? item.vod_id : null // 保存黑木耳源ID
       }))
+      
+      // 如果不是黑木耳源，需要获取黑木耳源的影片ID
+      if (currentSource.value !== 'api') {
+        try {
+          // 使用黑木耳源搜索相同影片
+          const heimuerResponse = await axios.get(`/api/api.php/provide/vod/`, {
+            params: {
+              ac: 'videolist',
+              wd: encodeURIComponent(query)
+            }
+          });
+          
+          if (heimuerResponse.data && heimuerResponse.data.code === 1 && 
+              heimuerResponse.data.list && heimuerResponse.data.list.length > 0) {
+            // 为每个搜索结果找到匹配的黑木耳源ID
+            formattedResults.forEach(result => {
+              const matchedMovie = heimuerResponse.data.list.find(item => 
+                item.vod_name === result.title
+              );
+              if (matchedMovie) {
+                result.id = matchedMovie.vod_id; // 使用黑木耳源的ID
+              }
+            });
+          }
+        } catch (error) {
+          console.error('获取黑木耳源ID失败:', error);
+        }
+      }
       
       if (resetResults) {
         searchResults.value = formattedResults
