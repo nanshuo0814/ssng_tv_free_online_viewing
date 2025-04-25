@@ -419,6 +419,11 @@ const playLists = computed(() => {
                 sourceName.includes('360yun')) {
           displayName = '360';
         }
+        // 华为源特殊处理
+        else if (sourceName.includes('huawei') || sourceName.includes('huaweiyun') ||
+                sourceName.includes('huaweim3u8') || sourceName === 'huawei') {
+          displayName = '华为';
+        }
         
         lists.push({
           source: displayName, // 显示名称
@@ -594,6 +599,56 @@ const wolongPlayList = ref([]);
 const wolongLoading = ref(false);
 const wolongLoaded = ref(false);
 const wolongDetailInfo = ref(null); // 存储卧龙源的详细信息
+
+// 监听播放源变化
+watch(() => route.query.source, async (newSource) => {
+  if (newSource && playLists.value.length > 0) {
+    console.log('URL中的播放源:', newSource);
+    
+    // 根据URL中的source参数选择对应的播放源
+    const sourceMap = {
+      'api': '黑木耳',
+      'ikun': '爱坤',
+      'wolong': '卧龙',
+      '360': '360',
+      'huawei': '华为',
+      'jisu': '急速',
+      'subo': '速播'
+    };
+    
+    const sourceName = sourceMap[newSource];
+    console.log('映射后的播放源名称:', sourceName);
+    
+    // 查找匹配的播放源
+    const sourceFromUrlExists = playLists.value.find(source => {
+      console.log('检查播放源:', source.source, source.sourceKey);
+      return (
+        source.source === sourceName || 
+        source.sourceKey === newSource || 
+        (source.sourceKey === 'subo' && sourceName === '速播') ||
+        (source.sourceKey === 'huawei' && sourceName === '华为') ||
+        (source.sourceKey === 'huawei' && newSource === 'huawei')
+      );
+    });
+    
+    if (sourceFromUrlExists) {
+      console.log('找到匹配的播放源:', sourceFromUrlExists.source);
+      activePlaySource.value = sourceFromUrlExists.source;
+    } else {
+      console.log('指定的播放源不存在，使用默认播放源');
+      // 如果指定的播放源不存在，使用默认逻辑
+      const heimuerSource = playLists.value.find(source => 
+        source.source === '黑木耳' || source.sourceKey === 'heimuer' || source.sourceKey === 'ikm3u8'
+      );
+      
+      if (heimuerSource) {
+        activePlaySource.value = heimuerSource.source;
+      } else {
+        activePlaySource.value = playLists.value[0].source;
+      }
+    }
+  }
+}, { immediate: true });
 
 // 监听播放源变化
 watch(() => activePlaySource.value, async (newSource, oldSource) => {
@@ -950,7 +1005,7 @@ async function loadVideoDetail() {
         ac: 'detail',
         ids: videoId.value
       }
-    })
+    });
     const result = response.data;
     
     if (result && result.code === 1 && result.list && result.list.length > 0) {
@@ -960,29 +1015,28 @@ async function loadVideoDetail() {
       // 获取到视频信息后添加到历史记录
       addToHistory();
       
-      // 获取爱坤播放源
-      await fetchIkunSource();
+      // 从URL获取播放源参数
+      const sourceFromUrl = route.query.source;
+      console.log('URL指定的播放源:', sourceFromUrl);
       
-      // 获取速播播放源
-      await fetchSuboSource();
+      // 如果是华为源，先加载华为源数据
+      if (sourceFromUrl === 'huawei') {
+        console.log('正在加载华为源数据...');
+        await fetchHuaweiSource();
+      }
       
-      // 获取华为播放源
-      await fetchHuaweiSource();
-      
-      // 获取急速播放源
-      await fetchJisuSource();
-      
-      // 获取360播放源
-      await fetch360Source();
-      
-      // 获取卧龙播放源
-      await fetchWolongSource();
+      // 等待其他源数据加载
+      await Promise.all([
+        fetchIkunSource(),
+        fetchSuboSource(),
+        sourceFromUrl !== 'huawei' ? fetchHuaweiSource() : Promise.resolve(),
+        fetchJisuSource(),
+        fetch360Source(),
+        fetchWolongSource()
+      ]);
       
       // 等待DOM更新
       await nextTick();
-      
-      // 从URL获取播放源参数
-      const sourceFromUrl = route.query.source;
       
       // 自动选择播放源
       if (playLists.value.length > 0) {
@@ -1001,11 +1055,23 @@ async function loadVideoDetail() {
           };
           
           const sourceName = sourceMap[sourceFromUrl];
-          const sourceFromUrlExists = playLists.value.find(source => source.source === sourceName);
+          console.log('查找播放源:', sourceName);
+          
+          // 查找匹配的播放源
+          const sourceFromUrlExists = playLists.value.find(source => {
+            console.log('检查播放源:', source.source, source.sourceKey);
+            return (
+              source.source === sourceName || 
+              source.sourceKey === sourceFromUrl ||
+              (sourceFromUrl === 'huawei' && source.source === '华为')
+            );
+          });
           
           if (sourceFromUrlExists) {
-            activePlaySource.value = sourceName;
+            console.log('找到匹配的播放源:', sourceFromUrlExists);
+            activePlaySource.value = sourceFromUrlExists.source;
           } else {
+            console.log('未找到指定的播放源，使用默认播放源');
             // 如果指定的播放源不存在，使用默认逻辑
             const heimuerSource = playLists.value.find(source => 
               source.source === '黑木耳' || source.sourceKey === 'heimuer' || source.sourceKey === 'ikm3u8'
