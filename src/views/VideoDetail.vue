@@ -125,9 +125,16 @@
               <el-tab-pane 
                 v-for="(playList, index) in playLists" 
                 :key="playList.sourceKey || index"
-                :label="playList.source"
                 :name="playList.source"
               >
+                <template #label>
+                  <div class="source-tab-label">
+                    <el-icon>
+                      <component :is="getSourceIcon(playList.sourceKey || playList.source)" />
+                    </el-icon>
+                    {{ playList.source }}
+                  </div>
+                </template>
                 <div class="section-title">
                   选集播放
                   <el-button
@@ -171,7 +178,7 @@ import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
 import { ElMessage } from 'element-plus';
-import { VideoPlay, Star, SortUp, SortDown, Back, Loading } from '@element-plus/icons-vue'
+import { VideoPlay, Star, SortUp, SortDown, Back, Loading, VideoCamera, Download, Monitor, Film, Cellphone } from '@element-plus/icons-vue'
 import { useHistoryStore } from '../stores/history'
 import { useFavoriteStore } from '../stores/favorite'
 
@@ -256,6 +263,18 @@ function playEpisode(source, url, index) {
     sourceId = ikunDetailInfo.value.vod_id;
   }
   
+  // 如果是速播源，使用速播源的影片ID
+  if (currentSource.sourceKey === 'subo' && suboDetailInfo.value) {
+    sourceId = suboDetailInfo.value.vod_id;
+    console.log('使用速播源影片ID:', sourceId);
+  }
+  
+  // 如果是华为源，使用华为源的影片ID
+  if (currentSource.sourceKey === 'huawei' && huaweiDetailInfo.value) {
+    sourceId = huaweiDetailInfo.value.vod_id;
+    console.log('使用华为源影片ID:', sourceId);
+  }
+  
   // 统一使用内部播放页面
   router.push(`/play/${sourceId}/${index + 1}/${currentSource.sourceKey}`);
 }
@@ -302,6 +321,18 @@ function startPlay() {
         sourceId = ikunDetailInfo.value.vod_id;
       }
       
+      // 如果是速播源，使用速播源的影片ID
+      if (sourceToPlay.sourceKey === 'subo' && suboDetailInfo.value) {
+        sourceId = suboDetailInfo.value.vod_id;
+        console.log('使用速播源影片ID:', sourceId);
+      }
+      
+      // 如果是华为源，使用华为源的影片ID
+      if (sourceToPlay.sourceKey === 'huawei' && huaweiDetailInfo.value) {
+        sourceId = huaweiDetailInfo.value.vod_id;
+        console.log('使用华为源影片ID:', sourceId);
+      }
+      
       // 统一使用内部播放页面
       router.push(`/play/${sourceId}/1/${sourceToPlay.sourceKey}`);
     } else {
@@ -327,9 +358,18 @@ const playLists = computed(() => {
       const urlList = playUrl[index] ? playUrl[index].split('#') : [];
       
       if (urlList.length > 0) {
-        // 修复：将所有包含heimuer或ikm3u8的源显示为"黑木耳"
+        // 处理各种源的显示名称
         const sourceName = source.trim();
-        const displayName = (sourceName === 'heimuer' || sourceName === 'ikm3u8') ? '黑木耳' : sourceName;
+        let displayName = sourceName;
+        
+        // 黑木耳源特殊处理
+        if (sourceName === 'heimuer' || sourceName === 'ikm3u8') {
+          displayName = '黑木耳';
+        } 
+        // 速播源特殊处理 - 扩展识别更多速播相关的源名称
+        else if (sourceName.includes('subyun') || sourceName.includes('subm3u8') || sourceName.includes('subo') || sourceName === 'sub') {
+          displayName = '速播';
+        }
         
         lists.push({
           source: displayName, // 显示名称
@@ -361,6 +401,48 @@ const playLists = computed(() => {
       })
     });
   }
+
+  // 添加速播播放源
+  if (videoInfo.value && suboPlayList.value.length > 0) {
+    // 检查是否已经有速播源，避免重复添加
+    const hasSuBoSource = lists.some(list => list.source === '速播');
+    
+    if (!hasSuBoSource) {
+      lists.push({
+        source: '速播',
+        sourceKey: 'subo', // 添加sourceKey用于识别
+        episodes: suboPlayList.value.map((episode, index) => {
+          return {
+            name: episode.name || `第${index + 1}集`,
+            url: episode.url || '',
+            index: index,
+            id: episode.id || (suboDetailInfo.value ? suboDetailInfo.value.vod_id : null)
+          };
+        })
+      });
+    }
+  }
+  
+  // 添加华为播放源
+  if (videoInfo.value && huaweiPlayList.value.length > 0) {
+    // 检查是否已经有华为源，避免重复添加
+    const hasHuaweiSource = lists.some(list => list.source === '华为');
+    
+    if (!hasHuaweiSource) {
+      lists.push({
+        source: '华为',
+        sourceKey: 'huawei', // 添加sourceKey用于识别
+        episodes: huaweiPlayList.value.map((episode, index) => {
+          return {
+            name: episode.name || `第${index + 1}集`,
+            url: episode.url || '',
+            index: index,
+            id: episode.id || (huaweiDetailInfo.value ? huaweiDetailInfo.value.vod_id : null)
+          };
+        })
+      });
+    }
+  }
   
   return lists;
 });
@@ -370,6 +452,18 @@ const ikunPlayList = ref([]);
 const ikunLoading = ref(false);
 const ikunLoaded = ref(false);
 const ikunDetailInfo = ref(null); // 存储爱坤源的详细信息
+
+// 速播播放源的数据
+const suboPlayList = ref([]);
+const suboLoading = ref(false);
+const suboLoaded = ref(false);
+const suboDetailInfo = ref(null); // 存储速播源的详细信息
+
+// 华为播放源的数据
+const huaweiPlayList = ref([]);
+const huaweiLoading = ref(false);
+const huaweiLoaded = ref(false);
+const huaweiDetailInfo = ref(null); // 存储华为源的详细信息
 
 // 监听播放源变化
 watch(() => activePlaySource.value, async (newSource, oldSource) => {
@@ -412,14 +506,57 @@ watch(() => activePlaySource.value, async (newSource, oldSource) => {
       // 刷新DOM以确保内容显示
       await nextTick();
     }
+  } else if (currentSource.sourceKey === 'subo') {
+    // 如果是速播源，则获取详细信息
+    currentSourceLoading.value = true;
+    try {
+      // 等待速播源加载完毕
+      if (!suboLoaded.value) {
+        await fetchSuboSource();
+      }
+      
+      // 更新UI显示
+      if (suboDetailInfo.value) {
+        updateSuboDetailDisplay();
+      }
+    } catch (error) {
+      console.error('切换到速播源时出错:', error);
+    } finally {
+      currentSourceLoading.value = false;
+      // 刷新DOM以确保内容显示
+      await nextTick();
+    }
+  } else if (currentSource.sourceKey === 'huawei') {
+    // 如果是华为源，则获取详细信息
+    currentSourceLoading.value = true;
+    try {
+      // 等待华为源加载完毕
+      if (!huaweiLoaded.value) {
+        await fetchHuaweiSource();
+      }
+      
+      // 更新UI显示
+      if (huaweiDetailInfo.value) {
+        updateHuaweiDetailDisplay();
+      }
+    } catch (error) {
+      console.error('切换到华为源时出错:', error);
+    } finally {
+      currentSourceLoading.value = false;
+      // 刷新DOM以确保内容显示
+      await nextTick();
+    }
   } else {
-    // 如果是从爱坤源切换回其他源，恢复原始数据
-    if (oldSource && playLists.value.find(source => source.source === oldSource)?.sourceKey === 'ikun') {
-      if (originalVideoInfo.value) {
-        console.log('从爱坤源切换回来，恢复原始数据');
-        videoInfo.value = { ...originalVideoInfo.value };
-        // 刷新DOM以确保内容显示
-        await nextTick();
+    // 如果是从爱坤源、速播源或华为源切换回其他源，恢复原始数据
+    if (oldSource) {
+      const oldSourceKey = playLists.value.find(source => source.source === oldSource)?.sourceKey;
+      if (oldSourceKey === 'ikun' || oldSourceKey === 'subo' || oldSourceKey === 'huawei') {
+        if (originalVideoInfo.value) {
+          console.log('从特殊源切换回来，恢复原始数据');
+          videoInfo.value = { ...originalVideoInfo.value };
+          // 刷新DOM以确保内容显示
+          await nextTick();
+        }
       }
     }
   }
@@ -461,12 +598,18 @@ const updateIkunDetailDisplay = () => {
   const originalId = originalVideoInfo.value.vod_id;
   const originalType = originalVideoInfo.value.type_id;
   
+  // 保留原始的播放源信息
+  const originalPlayFrom = originalVideoInfo.value.vod_play_from;
+  const originalPlayUrl = originalVideoInfo.value.vod_play_url;
+  
   // 临时存储详细信息，与原始信息合并
   const detailInfo = {
     ...ikunDetailInfo.value,
     vod_id: originalId, // 保留原始ID
     type_id: originalType, // 保留原始类型
-    _source: '爱坤' // 标记来源
+    _source: '爱坤', // 标记来源
+    vod_play_from: originalPlayFrom, // 保留原始播放源信息
+    vod_play_url: originalPlayUrl, // 保留原始播放URL信息
   };
   
   // 更新视图上的信息
@@ -575,10 +718,12 @@ const fetchIkunSource = async () => {
   }
 };
 
-// 在加载视频详情后也加载爱坤资源
+// 在加载视频详情后也加载爱坤资源和速播资源
 watch(() => videoInfo.value, (newVal) => {
   if (newVal) {
     fetchIkunSource();
+    fetchSuboSource();
+    fetchHuaweiSource();
   }
 });
 
@@ -636,6 +781,12 @@ async function loadVideoDetail() {
       // 获取爱坤播放源
       await fetchIkunSource();
       
+      // 获取速播播放源
+      await fetchSuboSource();
+      
+      // 获取华为播放源
+      await fetchHuaweiSource();
+      
       // 等待DOM更新
       await nextTick();
       
@@ -649,22 +800,27 @@ async function loadVideoDetail() {
         );
         
         if (heimuerSource) {
-          console.log('已找到黑木耳源');
           activePlaySource.value = heimuerSource.source;
         } else {
-          console.log('未找到黑木耳源，选择第一个可用源:', playLists.value[0].source);
+          // 否则选择第一个可用源
           activePlaySource.value = playLists.value[0].source;
         }
         
-        // 等待播放源变化的watch处理程序执行完毕
-        // 不需要在这里手动设置选集，会由watch处理器自动设置第一集
+        // 强制更新一下DOM
+        await nextTick();
+        
+        // 当前选中的播放源
+        const currentSource = playLists.value.find(s => s.source === activePlaySource.value);
+        if (currentSource && currentSource.episodes && currentSource.episodes.length > 0) {
+          activeEpisode.value = currentSource.episodes[0].url;
+        }
       }
     } else {
-      throw new Error(result.msg || '获取视频详情失败');
+      error.value = '未找到影片信息';
     }
   } catch (err) {
+    console.error('加载视频详情失败:', err);
     error.value = err.message || '加载失败';
-    console.error('加载视频详情失败', err);
   } finally {
     loading.value = false;
   }
@@ -747,6 +903,340 @@ function onTabClick(tab) {
   // 这里的额外处理可以确保激活状态正确
   activePlaySource.value = tab.props.name;
 }
+
+// 获取播放源图标
+const getSourceIcon = (sourceKey) => {
+  // 黑木耳源使用Film图标
+  if (sourceKey === 'heimuer' || sourceKey === 'ikm3u8' || sourceKey === '黑木耳') {
+    return 'Film';
+  } 
+  // 爱坤源使用VideoCamera图标
+  else if (sourceKey === 'ikun' || sourceKey === '爱坤') {
+    return 'VideoCamera';
+  }
+  // 速播源使用Download图标 
+  else if (sourceKey === 'subo' || sourceKey === '速播' || 
+          sourceKey.includes('subyun') || sourceKey.includes('subm3u8') || 
+          sourceKey === 'sub') {
+    return 'Download';
+  }
+  // 华为源使用Cellphone图标
+  else if (sourceKey === 'huawei' || sourceKey === '华为') {
+    return 'Cellphone';
+  }
+  // 默认图标
+  return 'VideoPlay';
+}
+
+// 获取匹配的速播影片
+const getSuboMatchedMovie = async () => {
+  try {
+    const response = await axios.get(`/subo/api.php/provide/vod/`, {
+      params: {
+        ac: 'videolist',
+        wd: videoInfo.value.vod_name
+      }
+    });
+    
+    if (response.data && response.data.code === 1 && response.data.list && response.data.list.length > 0) {
+      // 找到最匹配的影片
+      return response.data.list.find(item => 
+        item.vod_name === videoInfo.value.vod_name || 
+        (item.vod_sub && item.vod_sub.includes(videoInfo.value.vod_name))
+      ) || response.data.list[0];
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('获取速播影片失败:', error);
+    return null;
+  }
+};
+
+// 获取速播影片详情
+const getSuboMovieDetail = async (movieId) => {
+  try {
+    const response = await axios.get(`/subo/api.php/provide/vod/`, {
+      params: {
+        ac: 'detail',
+        ids: movieId
+      }
+    });
+    
+    if (response.data && response.data.code === 1 && response.data.list && response.data.list.length > 0) {
+      return response.data.list[0];
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('获取速播影片详情失败:', error);
+    return null;
+  }
+};
+
+// 解析速播播放列表
+const parseSuboPlayList = (detail) => {
+  if (!detail || !detail.vod_play_from || !detail.vod_play_url) {
+    console.warn('速播源：播放数据不完整');
+    return [];
+  }
+  
+  const playFrom = detail.vod_play_from.split(',');
+  const playUrl = detail.vod_play_url.split(',');
+  
+  // 默认使用第一个播放源
+  if (playFrom.length > 0 && playUrl.length > 0) {
+    const videoUrls = playUrl[0].split('#');
+    
+    return videoUrls.map((item, index) => {
+      const [name, url] = item.split('$');
+      return {
+        name: name?.trim() || `第${index + 1}集`,
+        url: url?.trim() || '',
+        index
+      };
+    }).filter(item => item.url);
+  }
+  
+  return [];
+};
+
+// 获取速播源数据
+const fetchSuboSource = async () => {
+  if (suboLoaded.value || suboLoading.value) return;
+  
+  suboLoading.value = true;
+  suboPlayList.value = [];
+  
+  try {
+    // 保存原始影片信息，以便在切换回来时恢复
+    if (!originalVideoInfo.value) {
+      originalVideoInfo.value = { ...videoInfo.value };
+    }
+    
+    // 1. 先通过影片名称搜索匹配的影片
+    const matchedMovie = await getSuboMatchedMovie();
+    if (!matchedMovie) {
+      console.warn('速播源：未找到匹配的影片');
+      return;
+    }
+    
+    console.log('速播源：找到匹配影片', matchedMovie);
+    
+    // 2. 获取匹配影片的详情
+    const detailInfo = await getSuboMovieDetail(matchedMovie.vod_id);
+    if (!detailInfo) {
+      console.warn('速播源：获取影片详情失败');
+      return;
+    }
+    
+    console.log('速播源：获取到详细信息', detailInfo);
+    
+    // 3. 保存详情信息，用于展示
+    suboDetailInfo.value = detailInfo;
+    
+    // 4. 解析播放列表
+    const episodes = parseSuboPlayList(detailInfo);
+    console.log('速播源：解析播放列表', episodes);
+    
+    if (episodes.length > 0) {
+      // 为每个剧集添加速播源的影片ID
+      suboPlayList.value = episodes.map(episode => ({
+        ...episode,
+        id: detailInfo.vod_id // 添加速播源的影片ID
+      }));
+      console.log('速播源：完整播放列表', suboPlayList.value);
+    } else {
+      console.warn('速播源：没有可用播放列表');
+    }
+  } catch (error) {
+    console.error('获取速播源数据失败:', error);
+  } finally {
+    suboLoading.value = false;
+    suboLoaded.value = true;
+  }
+};
+
+// 更新速播详情信息到UI
+const updateSuboDetailDisplay = () => {
+  if (!suboDetailInfo.value || !originalVideoInfo.value) return;
+  
+  // 更新展示的影片信息，但保留原始ID等关键信息
+  const originalId = originalVideoInfo.value.vod_id;
+  const originalType = originalVideoInfo.value.type_id;
+  
+  // 保留原始的播放源信息
+  const originalPlayFrom = originalVideoInfo.value.vod_play_from;
+  const originalPlayUrl = originalVideoInfo.value.vod_play_url;
+  
+  // 临时存储详细信息，与原始信息合并
+  const detailInfo = {
+    ...suboDetailInfo.value,
+    vod_id: originalId, // 保留原始ID
+    type_id: originalType, // 保留原始类型
+    _source: '速播', // 标记来源
+    vod_play_from: originalPlayFrom, // 保留原始播放源信息
+    vod_play_url: originalPlayUrl, // 保留原始播放URL信息
+  };
+  
+  // 更新视图上的信息
+  videoInfo.value = detailInfo;
+};
+
+// 获取匹配的华为影片
+const getHuaweiMatchedMovie = async () => {
+  try {
+    const response = await axios.get(`/huawei/api.php/provide/vod/`, {
+      params: {
+        ac: 'videolist',
+        wd: videoInfo.value.vod_name
+      }
+    });
+    
+    if (response.data && response.data.code === 1 && response.data.list && response.data.list.length > 0) {
+      // 找到最匹配的影片
+      return response.data.list.find(item => 
+        item.vod_name === videoInfo.value.vod_name || 
+        (item.vod_sub && item.vod_sub.includes(videoInfo.value.vod_name))
+      ) || response.data.list[0];
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('获取华为影片失败:', error);
+    return null;
+  }
+};
+
+// 获取华为影片详情
+const getHuaweiMovieDetail = async (movieId) => {
+  try {
+    const response = await axios.get(`/huawei/api.php/provide/vod/`, {
+      params: {
+        ac: 'detail',
+        ids: movieId
+      }
+    });
+    
+    if (response.data && response.data.code === 1 && response.data.list && response.data.list.length > 0) {
+      return response.data.list[0];
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('获取华为影片详情失败:', error);
+    return null;
+  }
+};
+
+// 解析华为播放列表
+const parseHuaweiPlayList = (detail) => {
+  if (!detail || !detail.vod_play_from || !detail.vod_play_url) {
+    console.warn('华为源：播放数据不完整');
+    return [];
+  }
+  
+  const playFrom = detail.vod_play_from.split(',');
+  const playUrl = detail.vod_play_url.split(',');
+  
+  // 默认使用第一个播放源
+  if (playFrom.length > 0 && playUrl.length > 0) {
+    const videoUrls = playUrl[0].split('#');
+    
+    return videoUrls.map((item, index) => {
+      const [name, url] = item.split('$');
+      return {
+        name: name?.trim() || `第${index + 1}集`,
+        url: url?.trim() || '',
+        index
+      };
+    }).filter(item => item.url);
+  }
+  
+  return [];
+};
+
+// 获取华为源数据
+const fetchHuaweiSource = async () => {
+  if (huaweiLoaded.value || huaweiLoading.value) return;
+  
+  huaweiLoading.value = true;
+  huaweiPlayList.value = [];
+  
+  try {
+    // 保存原始影片信息，以便在切换回来时恢复
+    if (!originalVideoInfo.value) {
+      originalVideoInfo.value = { ...videoInfo.value };
+    }
+    
+    // 1. 先通过影片名称搜索匹配的影片
+    const matchedMovie = await getHuaweiMatchedMovie();
+    if (!matchedMovie) {
+      console.warn('华为源：未找到匹配的影片');
+      return;
+    }
+    
+    console.log('华为源：找到匹配影片', matchedMovie);
+    
+    // 2. 获取匹配影片的详情
+    const detailInfo = await getHuaweiMovieDetail(matchedMovie.vod_id);
+    if (!detailInfo) {
+      console.warn('华为源：获取影片详情失败');
+      return;
+    }
+    
+    console.log('华为源：获取到详细信息', detailInfo);
+    
+    // 3. 保存详情信息，用于展示
+    huaweiDetailInfo.value = detailInfo;
+    
+    // 4. 解析播放列表
+    const episodes = parseHuaweiPlayList(detailInfo);
+    console.log('华为源：解析播放列表', episodes);
+    
+    if (episodes.length > 0) {
+      // 为每个剧集添加华为源的影片ID
+      huaweiPlayList.value = episodes.map(episode => ({
+        ...episode,
+        id: detailInfo.vod_id // 添加华为源的影片ID
+      }));
+      console.log('华为源：完整播放列表', huaweiPlayList.value);
+    } else {
+      console.warn('华为源：没有可用播放列表');
+    }
+  } catch (error) {
+    console.error('获取华为源数据失败:', error);
+  } finally {
+    huaweiLoading.value = false;
+    huaweiLoaded.value = true;
+  }
+};
+
+// 更新华为详情信息到UI
+const updateHuaweiDetailDisplay = () => {
+  if (!huaweiDetailInfo.value || !originalVideoInfo.value) return;
+  
+  // 更新展示的影片信息，但保留原始ID等关键信息
+  const originalId = originalVideoInfo.value.vod_id;
+  const originalType = originalVideoInfo.value.type_id;
+  
+  // 保留原始的播放源信息
+  const originalPlayFrom = originalVideoInfo.value.vod_play_from;
+  const originalPlayUrl = originalVideoInfo.value.vod_play_url;
+  
+  // 临时存储详细信息，与原始信息合并
+  const detailInfo = {
+    ...huaweiDetailInfo.value,
+    vod_id: originalId, // 保留原始ID
+    type_id: originalType, // 保留原始类型
+    _source: '华为', // 标记来源
+    vod_play_from: originalPlayFrom, // 保留原始播放源信息
+    vod_play_url: originalPlayUrl, // 保留原始播放URL信息
+  };
+  
+  // 更新视图上的信息
+  videoInfo.value = detailInfo;
+};
 </script>
 
 <style scoped>
@@ -1115,5 +1605,52 @@ function onTabClick(tab) {
 .source-loading-icon {
   font-size: 32px;
   color: var(--theme-color);
+}
+
+.source-tab-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.source-tab-label .el-icon {
+  font-size: 16px;
+}
+
+:deep(.el-tabs__item) {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 20px;
+  height: 40px;
+  font-size: 14px;
+  color: var(--text-color);
+  background-color: var(--card-background);
+  border: 1px solid var(--border-color);
+  transition: all 0.3s ease;
+}
+
+:deep(.el-tabs__item.is-active) {
+  color: var(--theme-color);
+  border-bottom-color: transparent;
+}
+
+:deep(.el-tabs__item:hover) {
+  color: var(--theme-color);
+}
+
+:deep(.el-tabs__nav-wrap::after) {
+  background-color: var(--border-color);
+}
+
+@media (max-width: 768px) {
+  :deep(.el-tabs__item) {
+    padding: 0 12px;
+    height: 36px;
+    font-size: 13px;
+  }
+  
+  .source-tab-label .el-icon {
+    font-size: 14px;
+  }
 }
 </style> 

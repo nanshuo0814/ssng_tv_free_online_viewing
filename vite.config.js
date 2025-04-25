@@ -21,6 +21,16 @@ export default defineConfig({
         target: 'https://ikunzy.net',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/ikun/, '')
+      },
+      '/subo': {
+        target: 'https://www.suboziyuan.net',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/subo/, '')
+      },
+      '/huawei': {
+        target: 'https://cjhwba.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/huawei/, '')
       }
     }
   }
