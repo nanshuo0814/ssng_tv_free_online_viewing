@@ -1161,6 +1161,9 @@ watch(() => route.params, (newParams) => {
 .back-button-container {
   /* padding: 16px; */
   margin-bottom: 16px;
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
 }
 /* .back-button {
   height: 30px;

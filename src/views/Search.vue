@@ -2,17 +2,33 @@
   <div class="search-page">
     <div class="search-header">
       <h2 class="search-title">搜索结果: "{{ searchQuery }}"</h2>
-      <div class="search-filters">
-        <div 
-          v-for="(filter, index) in filters" 
-          :key="index"
-          :class="['filter-item', { active: currentFilter === filter.value }]"
-          @click="setFilter(filter.value)"
+      <div class="search-actions">
+        <el-select 
+          v-model="currentSource" 
+          placeholder="选择播放源" 
+          size="large"
+          @change="handleSourceChange"
+          class="source-select"
         >
-          {{ filter.label }}
-          <span class="filter-count" v-if="currentFilter === filter.value">
-            ({{ filteredResults.length }})
-          </span>
+          <el-option 
+            v-for="sourceItem in availableSources" 
+            :key="sourceItem.value" 
+            :label="sourceItem.label" 
+            :value="sourceItem.value"
+          />
+        </el-select>
+        <div class="search-filters">
+          <div 
+            v-for="(filter, index) in filters" 
+            :key="index"
+            :class="['filter-item', { active: currentFilter === filter.value }]"
+            @click="setFilter(filter.value)"
+          >
+            {{ filter.label }}
+            <span class="filter-count" v-if="currentFilter === filter.value">
+              ({{ filteredResults.length }})
+            </span>
+          </div>
         </div>
       </div>
     </div>
@@ -42,6 +58,9 @@
             <div v-if="item.remarks" class="remarks-badge">
               {{ item.remarks }}
             </div>
+            <div class="source-badge" v-if="item.source && item.source !== 'api'">
+              {{ getSourceLabel(item.source) }}
+            </div>
           </div>
           <div class="movie-info">
             <h3 class="movie-title">{{ item.title }}</h3>
@@ -69,7 +88,7 @@
       <el-empty description="未找到相关结果">
         <template #description>
           <p>未找到"{{ searchQuery }}"相关的内容</p>
-          <p class="sub-text">请尝试其他关键词或浏览以下推荐内容</p>
+          <p class="sub-text">请尝试其他关键词或播放源</p>
         </template>
       </el-empty>
       
@@ -129,6 +148,24 @@ const page = ref(1)
 const pageSize = ref(24)
 const totalResults = ref(0)
 
+// 播放源相关
+const currentSource = ref('api')
+const availableSources = ref([
+  { label: '黑木耳', value: 'api' },
+  { label: '爱坤', value: 'ikun' },
+  { label: '卧龙', value: 'wolong' },
+  { label: '360', value: '360' },
+  { label: '华为', value: 'huawei' },
+  { label: '急速', value: 'jisu' },
+  { label: '速播', value: 'subo' },
+])
+
+// 获取播放源显示名称
+const getSourceLabel = (sourceValue) => {
+  const source = availableSources.value.find(src => src.value === sourceValue)
+  return source ? source.label : sourceValue
+}
+
 // 筛选器
 const filters = [
   { label: '全部', value: 'all' },
@@ -180,6 +217,13 @@ const filteredResults = computed(() => {
   })
 })
 
+// 处理播放源变更
+const handleSourceChange = (newSource) => {
+  // 切换源并重新搜索
+  currentSource.value = newSource
+  performSearch(searchQuery.value, true)
+}
+
 // 设置筛选器
 const setFilter = (filter) => {
   currentFilter.value = filter
@@ -215,14 +259,45 @@ const performSearch = async (query, resetResults = true) => {
   }
   
   try {
-    const response = await axios.get('/api/api.php/provide/vod/', {
+    // 根据当前选择的源设置API端点
+    let apiEndpoint = '/api';
+    if (currentSource.value === 'ikun') {
+      apiEndpoint = '/ikun';
+    } else if (currentSource.value === 'subo') {
+      apiEndpoint = '/subo';
+    } else if (currentSource.value === 'huawei') {
+      apiEndpoint = '/huawei';
+    } else if (currentSource.value === 'jisu') {
+      apiEndpoint = '/jisu';
+    } else if (currentSource.value === '360') {
+      apiEndpoint = '/360';
+    } else if (currentSource.value === 'wolong') {
+      apiEndpoint = '/wolong';
+    }
+    
+    const response = await axios.get(`${apiEndpoint}/api.php/provide/vod/`, {
       params: {
         ac: 'videolist',
         pg: page.value - 1, // API使用0为起始页
         pagesize: pageSize.value,
         wd: encodeURIComponent(query)
       }
-    })
+    }).catch(error => {
+      console.error('API请求失败:', error);
+      // 如果当前源请求失败，尝试使用默认API
+      if (currentSource.value !== 'api') {
+        console.log('尝试使用默认API获取信息');
+        return axios.get(`/api/api.php/provide/vod/`, {
+          params: {
+            ac: 'videolist',
+            pg: page.value - 1,
+            pagesize: pageSize.value,
+            wd: encodeURIComponent(query)
+          }
+        });
+      }
+      throw error;
+    });
     
     const { code, msg, page: currentPage, pagecount, total, list } = response.data
     
@@ -240,6 +315,7 @@ const performSearch = async (query, resetResults = true) => {
         actors: item.vod_actor,
         director: item.vod_director,
         description: item.vod_content,
+        source: currentSource.value, // 添加播放源标识
         isApiSource: true // 标记为API来源
       }))
       
@@ -299,6 +375,15 @@ watch(() => route.query.q, (newQuery) => {
   }
 }, { immediate: true })
 
+watch(() => route.query.source, (newSource) => {
+  if (newSource && availableSources.value.some(s => s.value === newSource)) {
+    currentSource.value = newSource
+    if (searchQuery.value) {
+      performSearch(searchQuery.value, true)
+    }
+  }
+}, { immediate: true })
+
 const searchInput = ref('')
 const showDropdown = ref(false)
 
@@ -307,7 +392,10 @@ const handleSearch = () => {
   if (!searchInput.value.trim()) return
   router.push({
     path: '/search',
-    query: { q: searchInput.value.trim() }
+    query: { 
+      q: searchInput.value.trim(),
+      source: currentSource.value
+    }
   })
   showDropdown.value = false
 }
@@ -332,9 +420,21 @@ const handleBlur = () => {
   margin-bottom: 30px;
 }
 
+.search-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.source-select {
+  min-width: 120px;
+}
+
 .search-title {
   font-size: 24px;
-  margin: 0 0 20px;
+  margin: 0;
   color: var(--text-color);
 }
 
@@ -342,6 +442,7 @@ const handleBlur = () => {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+  flex: 1;
 }
 
 .filter-item {
@@ -412,6 +513,17 @@ const handleBlur = () => {
   top: 8px;
   right: 8px;
   background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.source-badge {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  background-color: rgba(64, 158, 255, 0.9);
   color: white;
   padding: 4px 8px;
   border-radius: 4px;
@@ -561,6 +673,16 @@ const handleBlur = () => {
     padding: 10px;
   }
   
+  .search-actions {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
+  }
+  
+  .source-select {
+    width: 100%;
+  }
+  
   .results-grid {
     grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
     gap: 10px;
@@ -573,91 +695,5 @@ const handleBlur = () => {
   .movie-meta {
     font-size: 11px;
   }
-}
-
-/* 添加新的样式 */
-.search-input-container {
-  position: relative;
-  max-width: 600px;
-  margin: 0 auto 30px;
-}
-
-.search-input-wrapper {
-  display: flex;
-  gap: 10px;
-}
-
-.search-input {
-  flex: 1;
-  padding: 12px 16px;
-  font-size: 16px;
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  background-color: var(--card-background);
-  color: var(--text-color);
-  transition: all 0.3s ease;
-}
-
-.search-input:focus {
-  outline: none;
-  border-color: var(--theme-color);
-  box-shadow: 0 0 0 2px var(--theme-color-10);
-}
-
-.search-button {
-  padding: 0 24px;
-  font-size: 16px;
-  border-radius: 8px;
-}
-
-.search-history-dropdown {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  margin-top: 8px;
-  background-color: var(--card-background);
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  z-index: 1000;
-}
-
-.dropdown-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--border-color);
-}
-
-.history-list {
-  max-height: 300px;
-  overflow-y: auto;
-}
-
-.history-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 16px;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-}
-
-.history-item:hover {
-  background-color: var(--theme-color-10);
-}
-
-.history-text {
-  color: var(--text-color);
-}
-
-.delete-icon {
-  opacity: 0.6;
-  transition: opacity 0.3s ease;
-}
-
-.delete-icon:hover {
-  opacity: 1;
 }
 </style> 
