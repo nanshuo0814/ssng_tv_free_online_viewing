@@ -326,7 +326,6 @@ watch([currentType, currentTypeId], () => {
 
 // 组件挂载时添加滚动监听
 onMounted(() => {
-  fetchMovies()
   window.addEventListener('scroll', handleScroll)
 })
 

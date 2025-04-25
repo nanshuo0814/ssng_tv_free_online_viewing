@@ -10,6 +10,17 @@
         class="custom-alert"
       />
     </div>
+    <div v-if="isPipSupported" class="pip-tip">
+      <el-alert
+        title="新功能：画中画模式"
+        type="info"
+        description="您可以点击视频右上角的画中画按钮，或按键盘P键切换画中画模式，方便您边看视频边做其他事情。"
+        show-icon
+        :closable="true"
+        @close="hidePipTip"
+        class="custom-alert pip-alert"
+      />
+    </div>
     <div class="back-button-container">
       <el-button @click="goBack" class="back-button">
         <el-icon><Back /></el-icon>
@@ -31,6 +42,18 @@
 
     <div class="player-container">
       <div id="dplayer"></div>
+      <div class="player-controls">
+        <el-button
+          class="pip-button"
+          @click="togglePictureInPicture"
+          size="small"
+          :disabled="!isPipSupported"
+          :title="isPipSupported ? '画中画模式' : '您的浏览器不支持画中画功能'"
+        >
+          <el-icon><Picture /></el-icon>
+          画中画
+        </el-button>
+      </div>
     </div>
 
     <div class="episode-section">
@@ -87,7 +110,7 @@ import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
-import { ArrowLeft, SortUp, SortDown, Back } from '@element-plus/icons-vue'
+import { ArrowLeft, SortUp, SortDown, Back, Picture } from '@element-plus/icons-vue'
 import DPlayer from 'dplayer'
 import Hls from 'hls.js/dist/hls.min.js'
 import { useThemeStore } from '@/stores/theme'
@@ -128,6 +151,138 @@ const availableSources = ref([
 ])
 
 const historyStore = useHistoryStore()
+
+// 画中画相关状态和功能
+const isPipSupported = ref(false)
+const videoElement = ref(null)
+
+// 添加画中画提示控制
+const showPipTip = ref(true)
+
+// 隐藏画中画提示
+const hidePipTip = () => {
+  showPipTip.value = false
+  // 记住用户已经看过提示，存储到本地
+  localStorage.setItem('pipTipShown', 'true')
+}
+
+// 检查是否应该显示画中画提示
+const checkShouldShowPipTip = () => {
+  // 如果用户已经看过提示，不再显示
+  const tipShown = localStorage.getItem('pipTipShown')
+  showPipTip.value = tipShown !== 'true'
+}
+
+// 检查浏览器是否支持画中画
+const checkPipSupport = () => {
+  const video = document.createElement('video')
+  isPipSupported.value = video.requestPictureInPicture !== undefined || 
+                        (document.pictureInPictureEnabled && !video.disablePictureInPicture)
+  console.log('Picture-in-Picture 支持状态:', isPipSupported.value)
+}
+
+// 切换画中画模式
+const togglePictureInPicture = async () => {
+  try {
+    // 查找视频元素
+    if (!videoElement.value) {
+      // 尝试获取DPlayer中的video元素
+      const dplayerContainer = document.getElementById('dplayer')
+      videoElement.value = dplayerContainer?.querySelector('video')
+      
+      // 如果在DPlayer中找不到，尝试查找整个页面中可能的video元素
+      if (!videoElement.value) {
+        videoElement.value = document.querySelector('video')
+      }
+    }
+    
+    if (!videoElement.value) {
+      throw new Error('未找到视频元素')
+    }
+    
+    // 检查视频元数据是否已加载
+    if (!isVideoReadyForPip()) {
+      ElMessage.warning('视频正在加载，请稍后再试')
+      
+      // 添加一次性监听器等待视频加载，然后自动进入画中画模式
+      const onLoadedMetadata = () => {
+        ElMessage.success('视频已准备好，正在进入画中画模式')
+        videoElement.value.removeEventListener('loadedmetadata', onLoadedMetadata)
+        
+        // 视频准备好后自动尝试进入画中画模式
+        setTimeout(() => {
+          togglePictureInPicture()
+        }, 500)
+      }
+      
+      videoElement.value.addEventListener('loadedmetadata', onLoadedMetadata)
+      return
+    }
+    
+    // 如果当前在画中画模式，退出画中画
+    if (document.pictureInPictureElement) {
+      await document.exitPictureInPicture()
+      console.log('已退出画中画模式')
+      ElMessage.success('已退出画中画模式')
+    } else {
+      // 否则进入画中画模式
+      await videoElement.value.requestPictureInPicture()
+      console.log('已进入画中画模式')
+      ElMessage.success('已进入画中画模式')
+    }
+  } catch (error) {
+    console.error('切换画中画模式失败:', error)
+    
+    // 根据错误类型提供更友好的提示
+    if (error.name === 'InvalidStateError') {
+      ElMessage.warning('视频尚未准备好，请等待视频加载后再试')
+    } else {
+      ElMessage.error(`画中画功能出错: ${error.message || '未知错误'}`)
+    }
+  }
+}
+
+// 在播放器初始化后更新videoElement引用
+const updateVideoElementRef = () => {
+  setTimeout(() => {
+    const dplayerContainer = document.getElementById('dplayer')
+    const video = dplayerContainer?.querySelector('video')
+    
+    if (video) {
+      videoElement.value = video
+      console.log('视频元素引用已更新:', videoElement.value)
+      
+      // 添加视频元数据加载事件监听
+      const onLoadedMetadata = () => {
+        console.log('视频元数据已加载完成，视频准备就绪')
+        video.removeEventListener('loadedmetadata', onLoadedMetadata)
+      }
+      
+      if (video.readyState >= 1) {
+        console.log('视频元数据已经加载完成')
+      } else {
+        console.log('等待视频元数据加载...')
+        video.addEventListener('loadedmetadata', onLoadedMetadata)
+      }
+    } else {
+      console.log('未找到视频元素，将在稍后重试')
+      // 多尝试几次查找，有时播放器初始化需要更长时间
+      if (retryCount < 5) {
+        retryCount++
+        setTimeout(updateVideoElementRef, 1000)
+      }
+    }
+  }, 1000) // 给播放器一些初始化时间
+}
+
+// 尝试重新获取视频元素的次数
+const retryCount = ref(0)
+
+// 检查视频是否准备好进入画中画模式
+const isVideoReadyForPip = () => {
+  // 视频元素存在 且 已加载元数据 (readyState >= 1 表示元数据已加载)
+  return videoElement.value && videoElement.value.readyState >= 1;
+}
 
 // 切换播放源
 const changePlaybackSource = async (newSource) => {
@@ -374,6 +529,20 @@ const fallbackToIframe = (url) => {
         type: 'info',
         duration: 2000
       });
+      
+      // 在iframe模式下，提示用户画中画功能不可用
+      if (isPipSupported.value) {
+        setTimeout(() => {
+          ElMessage({
+            message: '在当前播放模式下，画中画功能不可用',
+            type: 'warning',
+            duration: 3000
+          });
+        }, 2500);
+      }
+      
+      // 清除视频元素引用，避免在iframe模式下尝试画中画
+      videoElement.value = null;
     } else {
       throw new Error('找不到播放器容器');
     }
@@ -448,6 +617,17 @@ const fallbackToNativePlayer = (url) => {
           </div>
         `;
       };
+      
+      // 添加视频事件监听器，更新视频元素引用
+      video.addEventListener('loadedmetadata', () => {
+        console.log('原生播放器: 视频元数据已加载');
+        videoElement.value = video;
+      });
+      
+      video.addEventListener('play', () => {
+        console.log('原生播放器: 视频开始播放');
+        videoElement.value = video;
+      });
       
       ElMessage({
         message: '已切换到原生播放模式',
@@ -566,6 +746,8 @@ const initPlayer = (url) => {
 
     player.value.on('loadeddata', () => {
       console.log('视频数据加载完成');
+      // 视频数据加载完成后更新视频元素引用
+      updateVideoElementRef();
     });
 
     player.value.on('canplay', () => {
@@ -574,6 +756,12 @@ const initPlayer = (url) => {
 
     player.value.on('waiting', () => {
       console.log('视频正在缓冲');
+    });
+
+    player.value.on('play', () => {
+      console.log('视频开始播放');
+      // 视频开始播放后再次更新视频元素引用
+      updateVideoElementRef();
     });
 
   } catch (error) {
@@ -1095,14 +1283,30 @@ const getVideoType = () => {
   return type
 }
 
+// 添加键盘事件处理函数
+const handleKeyDown = (event) => {
+  // 检查按键是否为 'p' 键（画中画快捷键）
+  if (event.key === 'p' && !event.ctrlKey && !event.altKey && !event.metaKey) {
+    togglePictureInPicture()
+  }
+}
+
 // 组件挂载时初始化
 onMounted(() => {
   historyStore.loadFromLocal()
   loadVideoInfo()
+  checkPipSupport() // 检查画中画支持
+  checkShouldShowPipTip() // 检查是否应该显示画中画提示
+  
+  // 添加键盘事件监听
+  window.addEventListener('keydown', handleKeyDown)
 })
 
 // 组件销毁时清理
 onBeforeUnmount(() => {
+  // 移除键盘事件监听
+  window.removeEventListener('keydown', handleKeyDown)
+  
   cleanupPlayer()
 })
 
@@ -1113,6 +1317,18 @@ watch(() => route.params, (newParams) => {
     loadVideoInfo()
   }
 }, { deep: true })
+
+// 在player初始化后更新视频元素引用
+watch(player, (newPlayer) => {
+  if (newPlayer) {
+    updateVideoElementRef()
+  }
+})
+
+// 监听视频替换，更新视频元素引用
+watch(() => route.params.episode, () => {
+  updateVideoElementRef()
+})
 </script>
 
 <style scoped>
@@ -1185,15 +1401,11 @@ watch(() => route.params, (newParams) => {
 }
 
 .player-container {
-  width: 100%;
-  max-width: 1200px;
-  margin: 0 auto;
-  background-color: var(--card-background);
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: var(--card-shadow);
   position: relative;
-  padding-top: 56.25%; /* 16:9 宽高比 */
+  width: 100%;
+  height: 0;
+  padding-bottom: 56.25%; /* 16:9 宽高比 */
+  background-color: #000;
 }
 
 #dplayer {
@@ -1202,7 +1414,41 @@ watch(() => route.params, (newParams) => {
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: #000;
+}
+
+.player-controls {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 1002; /* 确保控件在视频播放器之上 */
+}
+
+.pip-button {
+  background-color: rgba(0, 0, 0, 0.5) !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: 4px !important;
+  padding: 5px 10px !important;
+  font-size: 12px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  transition: all 0.3s ease !important;
+  opacity: 0.7;
+}
+
+.pip-button:hover {
+  opacity: 1;
+  background-color: rgba(64, 158, 255, 0.8) !important;
+}
+
+.pip-button:disabled {
+  background-color: rgba(0, 0, 0, 0.3) !important;
+  color: rgba(255, 255, 255, 0.5) !important;
+  cursor: not-allowed !important;
 }
 
 .episode-section {
@@ -1344,11 +1590,37 @@ watch(() => route.params, (newParams) => {
     font-size: 13px;
     padding: 6px 8px;
   }
+
+  .pip-button {
+    padding: 4px 8px !important;
+    font-size: 10px !important;
+  }
+  
+  .player-controls {
+    top: 5px;
+    right: 5px;
+  }
 }
 
 @media (min-width: 769px) and (max-width: 1200px) {
   .episode-list {
     grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
   }
+}
+
+.pip-tip {
+  margin: 10px auto;
+  max-width: 1200px;
+}
+
+.pip-alert {
+  background-color: rgba(64, 158, 255, 0.1) !important;
+  border-color: rgba(64, 158, 255, 0.3) !important;
+}
+
+.dark-theme .pip-alert {
+  background-color: rgba(64, 158, 255, 0.15) !important;
+  border-color: rgba(64, 158, 255, 0.4) !important;
+  color: #d0d0d0 !important;
 }
 </style> 
