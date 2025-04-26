@@ -267,8 +267,8 @@ const updateVideoElementRef = () => {
     } else {
       console.log('未找到视频元素，将在稍后重试')
       // 多尝试几次查找，有时播放器初始化需要更长时间
-      if (retryCount < 5) {
-        retryCount++
+      if (retryCount.value < 5) {
+        retryCount.value++
         setTimeout(updateVideoElementRef, 1000)
       }
     }
@@ -276,7 +276,7 @@ const updateVideoElementRef = () => {
 }
 
 // 尝试重新获取视频元素的次数
-const retryCount = ref(0)
+let retryCount = ref(0)
 
 // 检查视频是否准备好进入画中画模式
 const isVideoReadyForPip = () => {
