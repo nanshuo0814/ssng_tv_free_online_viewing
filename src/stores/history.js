@@ -7,25 +7,42 @@ export const useHistoryStore = defineStore('history', {
 
   actions: {
     addHistory(item) {
-      // 检查是否已存在相同的项目
-      const index = this.history.findIndex(h => h.id === item.id)
-      if (index !== -1) {
-        // 如果存在，删除旧的
-        this.history.splice(index, 1)
+      // 检查路由格式是否为 /play/{id}/{episode}/{source}
+      const isPlayRoute = /^\/play\/\d+\/\d+\/\w+$/.test(item.url)
+      if (!isPlayRoute) {
+        console.log('非播放页面路由，不添加到历史记录')
+        return
       }
-      // 添加到开头
-      this.history.unshift({
-        ...item,
-        timestamp: new Date().toISOString(),
-        // 添加更多视频信息
-        description: item.description || '', // 视频描述
-        actors: item.actors || '', // 主演
-        director: item.director || '', // 导演
-        year: item.year || '', // 年份
-        area: item.area || '', // 地区
-        remarks: item.remarks || '', // 备注（更新至第几集等）
-        score: item.score || '' // 评分
-      })
+
+      // 从URL中提取影片ID和播放源
+      const urlParts = item.url.split('/')
+      const videoId = urlParts[2]
+      const source = urlParts[4]
+
+      // 检查是否已存在相同影片和播放源的记录
+      const existingIndex = this.history.findIndex(h => 
+        h.id === videoId && h.source === source
+      )
+
+      if (existingIndex !== -1) {
+        // 如果存在，更新记录
+        this.history[existingIndex] = {
+          ...this.history[existingIndex],
+          ...item,
+          timestamp: new Date().toISOString(),
+          episode: urlParts[3], // 更新集数
+          url: item.url // 更新完整URL
+        }
+      } else {
+        // 如果不存在，添加新记录
+        this.history.unshift({
+          ...item,
+          id: videoId,
+          source: source,
+          episode: urlParts[3],
+          timestamp: new Date().toISOString()
+        })
+      }
       
       // 限制历史记录数量为50条
       if (this.history.length > 50) {

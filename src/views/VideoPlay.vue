@@ -1215,21 +1215,7 @@ const loadVideoInfo = async () => {
         initPlayer(currentEpisode.value.url);
         
         // 添加到播放历史
-        if (videoInfo.value) {
-          const historyItem = {
-            id: videoInfo.value.vod_id,
-            title: videoInfo.value.vod_name,
-            url: route.fullPath,
-            type: getVideoType(),
-            poster: videoInfo.value.vod_pic || '',
-            currentTime: 0,
-            episode: episode,
-            source: source,
-            episodeName: currentEpisode.value.name
-          };
-          
-          historyStore.addHistory(historyItem);
-        }
+        addToHistory();
       } else {
         throw new Error('无有效播放地址');
       }
@@ -1260,7 +1246,7 @@ const addToHistory = () => {
       id: videoInfo.value.vod_id,
       title: videoInfo.value.vod_name,
       type: getVideoType(),
-      url: route.fullPath,
+      url: route.fullPath, // 使用完整路由路径
       poster: videoInfo.value.vod_pic,
       description: videoInfo.value.vod_content,
       actors: videoInfo.value.vod_actor,
@@ -1268,7 +1254,9 @@ const addToHistory = () => {
       year: videoInfo.value.vod_year,
       area: videoInfo.value.vod_area,
       remarks: videoInfo.value.vod_remarks,
-      score: videoInfo.value.vod_score
+      score: videoInfo.value.vod_score,
+      episode: route.params.episode,
+      source: route.params.source
     }
     console.log('添加到历史记录:', historyItem)
     historyStore.addHistory(historyItem)

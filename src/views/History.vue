@@ -1,25 +1,41 @@
 <template>
   <!-- <div class="history-page"> -->
     <div class="history-header">
-      <h2>观看历史</h2>
-      <el-button 
-        type="danger" 
-        size="small" 
-        @click="confirmClear"
-        v-if="historyStore.getHistory.length > 0"
-      >
-        清空历史
-      </el-button>
+      <div class="header-left">
+        <h2>观看历史</h2>
+        <el-button 
+          type="danger" 
+          size="small" 
+          @click="confirmClear"
+          v-if="historyStore.getHistory.length > 0"
+        >
+          清空历史
+        </el-button>
+        <el-select
+          v-model="sourceFilter"
+          placeholder="所有来源"
+          clearable
+          class="source-filter"
+          @change="handleFilterChange"
+        >
+          <el-option
+            v-for="source in availableSources"
+            :key="source.value"
+            :label="source.label"
+            :value="source.value"
+          />
+        </el-select>
+      </div>
     </div>
 
     <!-- 空状态 -->
-    <div v-if="historyStore.getHistory.length === 0" class="empty-state">
-      <el-empty description="暂无观看历史" />
+    <div v-if="filteredHistory.length === 0" class="empty-state">
+      <el-empty :description="sourceFilter ? '没有相关来源的观看记录' : '暂无观看历史'" />
     </div>
 
     <!-- 历史记录列表 -->
     <div v-else class="history-list">
-      <div v-for="item in historyStore.getHistory" :key="item.id" class="history-item">
+      <div v-for="item in filteredHistory" :key="item.id" class="history-item">
         <router-link :to="item.url" class="history-content">
           <div class="history-poster">
             <img :src="item.poster" :alt="item.title" @error="handleImageError">
@@ -39,6 +55,9 @@
               <span v-if="item.year" class="meta-item">{{ item.year }}年</span>
               <span v-if="item.area" class="meta-item">{{ item.area }}</span>
               <span class="meta-item">{{ getTypeLabel(item.type) }}</span>
+              <span v-if="item.source" class="source-tag" :class="getSourceClass(item.source)">
+                {{ getSourceName(item.source) }}
+              </span>
             </div>
 
             <div v-if="item.actors" class="actors">
@@ -69,12 +88,37 @@
 </template>
 
 <script setup>
-import { onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useHistoryStore } from '../stores/history'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import { Delete } from '@element-plus/icons-vue'
 
 const historyStore = useHistoryStore()
+const sourceFilter = ref('')
+
+// 所有可用的播放源
+const availableSources = [
+  { value: 'api', label: '黑木耳' },
+  { value: 'ikun', label: '爱坤' },
+  { value: 'wolong', label: '卧龙' },
+  { value: '360', label: '360' },
+  { value: 'huawei', label: '华为' },
+  { value: 'jisu', label: '急速' },
+  { value: 'subo', label: '速播' }
+]
+
+// 根据播放源筛选历史记录
+const filteredHistory = computed(() => {
+  if (!sourceFilter.value) {
+    return historyStore.getHistory
+  }
+  return historyStore.getHistory.filter(item => item.source === sourceFilter.value)
+})
+
+// 处理筛选变化
+const handleFilterChange = () => {
+  // 可以在这里添加额外的筛选逻辑
+}
 
 // 格式化时间
 const formatTime = (timestamp) => {
@@ -112,6 +156,26 @@ const getTypeLabel = (type) => {
     shorts: '短剧'
   }
   return typeMap[type] || type
+}
+
+// 获取播放源名称
+const getSourceName = (source) => {
+  const sourceMap = {
+    'api': '黑木耳',
+    'ikun': '爱坤',
+    'wolong': '卧龙',
+    'play': 'Play',
+    '360': '360',
+    'huawei': '华为',
+    'jisu': '急速',
+    'subo': '速播'
+  }
+  return sourceMap[source] || source
+}
+
+// 获取播放源样式类
+const getSourceClass = (source) => {
+  return `source-${source}`
 }
 
 // 处理图片加载失败
@@ -176,6 +240,16 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.source-filter {
+  width: 140px;
 }
 
 .history-header h2 {
@@ -279,6 +353,7 @@ onMounted(() => {
   gap: 15px;
   color: var(--text-color-light);
   font-size: 14px;
+  flex-wrap: wrap;
 }
 
 .meta-item {
@@ -286,6 +361,84 @@ onMounted(() => {
   padding: 2px 8px;
   border-radius: 4px;
   font-size: 12px;
+}
+
+/* 播放源标签样式 */
+.source-tag {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: white;
+}
+
+.source-api {
+  background-color: #409EFF;
+}
+
+.source-ikun {
+  background-color: #67C23A;
+}
+
+.source-wolong {
+  background-color: #E6A23C;
+}
+
+.source-play {
+  background-color: #F56C6C;
+}
+
+.source-360 {
+  background-color: #909399;
+}
+
+.source-huawei {
+  background-color: #9B59B6;
+}
+
+.source-jisu {
+  background-color: #3498DB;
+}
+
+.source-subo {
+  background-color: #16A085;
+}
+
+/* 暗黑模式下的播放源标签样式 */
+:root[data-theme="dark"] .source-tag {
+  opacity: 0.9;
+}
+
+:root[data-theme="dark"] .source-api {
+  background-color: rgba(64, 158, 255, 0.8);
+}
+
+:root[data-theme="dark"] .source-ikun {
+  background-color: rgba(103, 194, 58, 0.8);
+}
+
+:root[data-theme="dark"] .source-wolong {
+  background-color: rgba(230, 162, 60, 0.8);
+}
+
+:root[data-theme="dark"] .source-play {
+  background-color: rgba(245, 108, 108, 0.8);
+}
+
+:root[data-theme="dark"] .source-360 {
+  background-color: rgba(144, 147, 153, 0.8);
+}
+
+:root[data-theme="dark"] .source-huawei {
+  background-color: rgba(155, 89, 182, 0.8);
+}
+
+:root[data-theme="dark"] .source-jisu {
+  background-color: rgba(52, 152, 219, 0.8);
+}
+
+:root[data-theme="dark"] .source-subo {
+  background-color: rgba(22, 160, 133, 0.8);
 }
 
 .actors, .director {
@@ -307,6 +460,17 @@ onMounted(() => {
 @media (max-width: 768px) {
   .history-page {
     padding: 10px;
+  }
+
+  .history-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .header-left {
+    width: 100%;
+    justify-content: space-between;
   }
 
   .history-item {
