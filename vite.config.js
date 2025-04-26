@@ -1,9 +1,41 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import path from 'path'
+import viteCompression from 'vite-plugin-compression'
 
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [
+    vue(),
+    viteCompression({
+      // 压缩算法
+      algorithm: 'gzip',
+      // 压缩文件类型
+      ext: '.gz',
+      // 是否在控制台输出压缩结果
+      verbose: true,
+      // 是否删除原始文件
+      deleteOriginFile: false,
+      // 压缩阈值
+      threshold: 10240,
+      // 是否启用压缩
+      disable: false,
+      // 压缩级别
+      compressionOptions: {
+        level: 9
+      }
+    }),
+    viteCompression({
+      algorithm: 'brotliCompress',
+      ext: '.br',
+      verbose: true,
+      deleteOriginFile: false,
+      threshold: 10240,
+      disable: false,
+      compressionOptions: {
+        level: 11
+      }
+    })
+  ],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src')
