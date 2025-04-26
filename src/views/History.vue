@@ -1,13 +1,15 @@
 <template>
   <!-- <div class="history-page"> -->
     <div class="history-header">
-      <div class="header-left">
-        <h2>观看历史</h2>
+      <h2 class="history-title">观看历史</h2>
+      <div class="header-controls">
         <el-button 
           type="danger" 
           size="small" 
+          style="height: 30px;"
           @click="confirmClear"
           v-if="historyStore.getHistory.length > 0"
+          class="clear-btn"
         >
           清空历史
         </el-button>
@@ -28,6 +30,13 @@
       </div>
     </div>
 
+    <!-- 记录数量提示 -->
+    <div class="record-count-tip" :class="{ 'warning': historyStore.getHistory.length > 40 }">
+      <el-icon><InfoFilled /></el-icon>
+      <span>系统最多保存50条观看历史记录，当前已使用：</span>
+      <span class="count-number">{{ historyStore.getHistory.length }}/50</span>
+    </div>
+
     <!-- 空状态 -->
     <div v-if="filteredHistory.length === 0" class="empty-state">
       <el-empty :description="sourceFilter ? '没有相关来源的观看记录' : '暂无观看历史'" />
@@ -35,7 +44,7 @@
 
     <!-- 历史记录列表 -->
     <div v-else class="history-list">
-      <div v-for="item in filteredHistory" :key="item.id" class="history-item">
+      <div v-for="(item, index) in filteredHistory" :key="`${item.id}_${item.source}_${index}_${item.timestamp}`" class="history-item">
         <router-link :to="item.url" class="history-content">
           <div class="history-poster">
             <img :src="item.poster" :alt="item.title" @error="handleImageError">
@@ -73,15 +82,29 @@
             </div>
           </div>
         </router-link>
-        <el-button 
-          type="danger" 
-          size="small" 
-          circle
-          class="delete-btn"
-          @click="removeItem(item.id)"
-        >
-          <el-icon><Delete /></el-icon>
-        </el-button>
+        <div class="item-actions">
+          <el-button 
+            :type="isFavorited(item.id) ? 'primary' : ''"
+            size="small" 
+            circle
+            class="action-btn favorite-btn"
+            :class="{'is-favorited': isFavorited(item.id)}"
+            :title="isFavorited(item.id) ? '取消收藏' : '加入收藏'"
+            @click="toggleFavorite(item)"
+          >
+            <el-icon><Star /></el-icon>
+          </el-button>
+          <el-button 
+            type="danger" 
+            size="small" 
+            circle
+            class="action-btn delete-btn"
+            title="删除记录"
+            @click="removeItem(item.id)"
+          >
+            <el-icon><Delete /></el-icon>
+          </el-button>
+        </div>
       </div>
     </div>
   <!-- </div> -->
@@ -90,15 +113,17 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useHistoryStore } from '../stores/history'
+import { useFavoriteStore } from '../stores/favorite'
 import { ElMessageBox, ElMessage } from 'element-plus'
-import { Delete } from '@element-plus/icons-vue'
+import { Delete, InfoFilled, Star, StarFilled } from '@element-plus/icons-vue'
 
 const historyStore = useHistoryStore()
+const favoriteStore = useFavoriteStore()
 const sourceFilter = ref('')
 
 // 所有可用的播放源
 const availableSources = [
-  { value: 'api', label: '黑木耳' },
+  { value: 'heimuer_api', label: '黑木耳' },  // 特殊值，用于同时筛选heimuer和api
   { value: 'ikun', label: '爱坤' },
   { value: 'wolong', label: '卧龙' },
   { value: '360', label: '360' },
@@ -112,6 +137,14 @@ const filteredHistory = computed(() => {
   if (!sourceFilter.value) {
     return historyStore.getHistory
   }
+  
+  // 特殊处理黑木耳（包含api和heimuer两个源）
+  if (sourceFilter.value === 'heimuer_api') {
+    return historyStore.getHistory.filter(item => 
+      item.source === 'api' || item.source === 'heimuer'
+    )
+  }
+  
   return historyStore.getHistory.filter(item => item.source === sourceFilter.value)
 })
 
@@ -168,7 +201,8 @@ const getSourceName = (source) => {
     '360': '360',
     'huawei': '华为',
     'jisu': '急速',
-    'subo': '速播'
+    'subo': '速播',
+    'heimuer': '黑木耳'
   }
   return sourceMap[source] || source
 }
@@ -187,6 +221,37 @@ const handleImageError = (event) => {
 const truncateText = (text, maxLength) => {
   if (!text) return ''
   return text.length > maxLength ? text.slice(0, maxLength) + '...' : text
+}
+
+// 检查是否收藏
+const isFavorited = (id) => {
+  return favoriteStore.isFavorited(id)
+}
+
+// 切换收藏状态
+const toggleFavorite = (item) => {
+  if (isFavorited(item.id)) {
+    // 取消收藏
+    favoriteStore.removeFavorite(item.id)
+    ElMessage.success('已取消收藏')
+  } else {
+    // 添加收藏
+    const favoriteItem = {
+      id: item.id,
+      title: item.title,
+      type: item.type,
+      poster: item.poster,
+      year: item.year,
+      area: item.area,
+      score: item.score,
+      actors: item.actors,
+      director: item.director,
+      remarks: item.remarks,
+      url: `/detail/${item.id}`
+    }
+    favoriteStore.addFavorite(favoriteItem)
+    ElMessage.success('已加入收藏')
+  }
 }
 
 // 删除单个记录
@@ -221,9 +286,10 @@ const confirmClear = () => {
   }).catch(() => {})
 }
 
-// 组件加载时从本地存储加载历史记录
+// 组件加载时从本地存储加载历史记录和收藏
 onMounted(() => {
   historyStore.loadFromLocal()
+  favoriteStore.loadFromLocal()
 })
 </script>
 
@@ -242,19 +308,25 @@ onMounted(() => {
   margin-bottom: 20px;
 }
 
-.header-left {
+.history-title {
+  margin: 0;
+  color: var(--text-color);
+  flex-shrink: 0;
+  margin-right: auto;
+}
+
+.header-controls {
   display: flex;
   align-items: center;
   gap: 15px;
 }
 
-.source-filter {
-  width: 140px;
+.clear-btn {
+  margin: 0 10px;
 }
 
-.history-header h2 {
-  margin: 0;
-  color: var(--text-color);
+.source-filter {
+  width: 140px;
 }
 
 .empty-state {
@@ -376,6 +448,10 @@ onMounted(() => {
   background-color: #409EFF;
 }
 
+.source-heimuer {
+  background-color: #409EFF;
+}
+
 .source-ikun {
   background-color: #67C23A;
 }
@@ -410,6 +486,10 @@ onMounted(() => {
 }
 
 :root[data-theme="dark"] .source-api {
+  background-color: rgba(64, 158, 255, 0.8);
+}
+
+:root[data-theme="dark"] .source-heimuer {
   background-color: rgba(64, 158, 255, 0.8);
 }
 
@@ -453,8 +533,93 @@ onMounted(() => {
   font-size: 13px;
 }
 
-.delete-btn {
+.item-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   margin-left: 15px;
+  align-items: flex-end;
+}
+
+.action-btn {
+  width: 36px;
+  height: 36px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  border: none;
+}
+
+.action-btn:deep(.el-icon) {
+  font-size: 18px;
+  transition: transform 0.2s ease;
+}
+
+.action-btn:hover:deep(.el-icon) {
+  transform: scale(1.2);
+}
+
+.favorite-btn {
+  background-color: #409EFF;
+  color: white;
+}
+
+.favorite-btn.is-favorited {
+  background-color: #409EFF;
+}
+
+.favorite-btn:not(.is-favorited) {
+  background-color: #909399;
+}
+
+.delete-btn {
+  background-color: #F56C6C;
+  color: white;
+}
+
+/* 暗黑模式样式 */
+:root[data-theme="dark"] .action-btn {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+:root[data-theme="dark"] .favorite-btn.is-favorited {
+  background-color: #337ecc;
+}
+
+:root[data-theme="dark"] .favorite-btn:not(.is-favorited) {
+  background-color: #606266;
+}
+
+:root[data-theme="dark"] .delete-btn {
+  background-color: #cf5959;
+}
+
+.record-count-tip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 12px;
+  background-color: rgba(64, 158, 255, 0.1);
+  border-radius: 4px;
+  margin-bottom: 20px;
+  color: var(--text-color-light);
+  font-size: 14px;
+}
+
+.record-count-tip .el-icon {
+  color: #409EFF;
+  font-size: 16px;
+}
+
+.record-count-tip.warning {
+  background-color: rgba(230, 162, 60, 0.1);
+}
+
+.record-count-tip.warning .el-icon {
+  color: #E6A23C;
+}
+
+.count-number {
+  font-weight: bold;
+  color: var(--text-color);
 }
 
 @media (max-width: 768px) {
@@ -463,14 +628,38 @@ onMounted(() => {
   }
 
   .history-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
+    flex-wrap: nowrap;
+    gap: 8px;
   }
 
-  .header-left {
-    width: 100%;
-    justify-content: space-between;
+  .history-title {
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  .header-controls {
+    flex-shrink: 1;
+    gap: 8px;
+  }
+
+  .clear-btn {
+    margin: 0;
+    padding: 5px 8px;
+    font-size: 12px;
+  }
+
+  .source-filter {
+    width: 100px;
+  }
+
+  .record-count-tip {
+    font-size: 12px;
+    padding: 6px 10px;
+    flex-wrap: wrap;
+  }
+
+  .record-count-tip .el-icon {
+    font-size: 14px;
   }
 
   .history-item {
@@ -484,10 +673,6 @@ onMounted(() => {
   .history-poster {
     width: 120px;
     height: 160px;
-  }
-
-  .history-title {
-    font-size: 16px;
   }
 
   .meta-info {

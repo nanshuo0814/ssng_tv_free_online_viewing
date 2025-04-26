@@ -5,11 +5,20 @@
       <el-button 
         type="danger" 
         size="small" 
+        style="height: 32px;"
         @click="confirmClear"
         v-if="favoriteStore.getFavoritesCount > 0"
       >
         清空收藏
       </el-button>
+    </div>
+
+    <!-- 收藏数量提示 -->
+    <div class="favorite-count-tip" v-if="favoriteStore.getFavoritesCount > 0">
+      <el-icon><Star /></el-icon>
+      <span>当前共收藏了 </span>
+      <span class="count-number">{{ favoriteStore.getFavoritesCount }}</span>
+      <span> 部影片</span>
     </div>
 
     <!-- 空状态 -->
@@ -72,7 +81,7 @@
 import { onMounted } from 'vue'
 import { useFavoriteStore } from '../stores/favorite'
 import { ElMessageBox, ElMessage } from 'element-plus'
-import { Delete } from '@element-plus/icons-vue'
+import { Delete, Star } from '@element-plus/icons-vue'
 
 const favoriteStore = useFavoriteStore()
 
@@ -182,6 +191,29 @@ onMounted(() => {
 .favorites-header h2 {
   margin: 0;
   color: var(--text-color);
+}
+
+.favorite-count-tip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 12px;
+  background-color: rgba(230, 162, 60, 0.1);
+  border-radius: 4px;
+  margin-bottom: 20px;
+  color: var(--text-color-light);
+  font-size: 14px;
+}
+
+.favorite-count-tip .el-icon {
+  color: #E6A23C;
+  font-size: 16px;
+}
+
+.count-number {
+  font-weight: bold;
+  font-size: 16px;
+  color: #E6A23C;
 }
 
 .empty-state {
