@@ -223,7 +223,8 @@ function toggleFavorite() {
       id: videoInfo.value.vod_id,
       title: videoInfo.value.vod_name,
       poster: videoInfo.value.vod_pic,
-      type: getVideoType(),
+      // type: getVideoType(),
+      type: videoInfo.value.type_name,
       remarks: videoInfo.value.vod_remarks,
       year: videoInfo.value.vod_year,
       area: videoInfo.value.vod_area,
@@ -239,12 +240,14 @@ function toggleFavorite() {
 }
 
 // 获取视频类型
-function getVideoType() {
-  // 从URL中提取类型
-  const pathParts = route.path.split('/')
-  const type = pathParts[1] // 例如 /tv/detail/... 中的 tv
-  return type || 'video'
-}
+// function getVideoType() {
+//   // 从URL中提取类型
+//   const pathParts = route.path.split('/')
+//   console.log('路径部分:', pathParts);
+//   const type = pathParts[0] // 例如 /tv/detail/... 中的 tv
+//   console.log('视频类型:', type);
+//   return type || 'video'
+// }
 
 // 播放指定剧集
 function playEpisode(source, url, index) {
@@ -978,7 +981,8 @@ const addToHistory = () => {
     const historyItem = {
       id: videoInfo.value.vod_id,
       title: videoInfo.value.vod_name,
-      type: getVideoType(),
+      // type: getVideoType(),
+      type: videoInfo.value.type_name,
       url: route.fullPath,
       poster: videoInfo.value.vod_pic,
       description: videoInfo.value.vod_content,

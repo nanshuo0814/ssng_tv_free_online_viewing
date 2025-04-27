@@ -460,7 +460,8 @@ const addToHistory = () => {
     const historyItem = {
       id: videoInfo.value.vod_id,
       title: videoInfo.value.vod_name,
-      type: getVideoType(),
+      // type: getVideoType(),
+      type: videoInfo.value.type_name,
       url: route.fullPath, // 使用完整路由路径
       poster: videoInfo.value.vod_pic,
       description: videoInfo.value.vod_content,
@@ -479,12 +480,12 @@ const addToHistory = () => {
 }
 
 // 获取视频类型
-const getVideoType = () => {
-  // 从URL中提取类型
-  const pathParts = route.path.split('/')
-  const type = pathParts[1] // 例如 /tv/play/... 中的 tv
-  return type
-}
+// const getVideoType = () => {
+//   // 从URL中提取类型
+//   const pathParts = route.path.split('/')
+//   const type = pathParts[1] // 例如 /tv/play/... 中的 tv
+//   return type
+// }
 
 // 初始化播放器
 const initPlayer = (url) => {
