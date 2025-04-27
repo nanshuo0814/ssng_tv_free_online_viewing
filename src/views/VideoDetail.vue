@@ -122,6 +122,40 @@
               </el-icon>
               <span class="button-text">{{ isFavorited ? '取消收藏' : '收藏' }}</span>
             </el-button>
+            <el-dropdown trigger="click" class="share-dropdown">
+              <el-button type="warning">
+                <el-icon class="button-icon"><Share /></el-icon>
+                <span class="button-text">分享</span>
+              </el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item @click="shareToWeChat">
+                    <div class="share-item">
+                      <i class="fa-brands fa-weixin share-icon" style="color: #07C160;"></i>
+                      <span>微信</span>
+                    </div>
+                  </el-dropdown-item>
+                  <el-dropdown-item @click="shareToWeibo">
+                    <div class="share-item">
+                      <i class="fa-brands fa-weibo share-icon" style="color: #E6162D;"></i>
+                      <span>微博</span>
+                    </div>
+                  </el-dropdown-item>
+                  <el-dropdown-item @click="shareToQQ">
+                    <div class="share-item">
+                      <i class="fa-brands fa-qq share-icon" style="color: #12B7F5;"></i>
+                      <span>QQ</span>
+                    </div>
+                  </el-dropdown-item>
+                  <el-dropdown-item @click="copyShareLink">
+                    <div class="share-item">
+                      <i class="fa-solid fa-link share-icon"></i>
+                      <span>复制链接</span>
+                    </div>
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </div>
         </div>
       </div>
@@ -181,6 +215,24 @@
         <div class="description-content" v-html="formatContent(videoInfo.vod_content)"></div>
       </div>
     </div>
+    
+    <!-- 微信分享二维码弹窗 -->
+    <el-dialog
+      v-model="qrCodeDialogVisible"
+      title="微信扫码分享"
+      width="300px"
+      center
+    >
+      <div class="qrcode-content">
+        <qrcode-vue 
+          :value="currentPageUrl" 
+          :size="200" 
+          level="H" 
+          render-as="canvas"
+        ></qrcode-vue>
+        <p class="qrcode-tip">请使用微信"扫一扫"扫描二维码</p>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -189,9 +241,10 @@ import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
 import { ElMessage } from 'element-plus';
-import { VideoPlay, Star, SortUp, SortDown, Back, Loading, VideoCamera, Download, Monitor, Film, Cellphone, VideoCameraFilled } from '@element-plus/icons-vue'
+import { VideoPlay, Star, SortUp, SortDown, Back, Loading, VideoCamera, Download, Monitor, Film, Cellphone, VideoCameraFilled, Share } from '@element-plus/icons-vue'
 import { useHistoryStore } from '../stores/history'
 import { useFavoriteStore } from '../stores/favorite'
+import QrcodeVue from 'qrcode.vue';
 
 // 从路由参数中获取视频ID
 const route = useRoute();
@@ -2187,6 +2240,57 @@ const playVideo = (episode) => {
   
   router.push(`/play/${sourceId}/${episode.index + 1}/${currentSource.sourceKey}`);
 }
+
+// 分享功能
+const shareToWeChat = () => {
+  // 更新当前页面URL（以防页面有变化）
+  currentPageUrl.value = window.location.href;
+  // 显示微信分享弹窗
+  qrCodeDialogVisible.value = true;
+};
+
+const shareToWeibo = () => {
+  const shareUrl = encodeURIComponent(window.location.href);
+  const title = encodeURIComponent(videoInfo.value?.vod_name || '');
+  const imageUrl = encodeURIComponent(videoInfo.value?.vod_pic || '');
+  
+  const weiboUrl = `https://service.weibo.com/share/share.php?url=${shareUrl}&title=${title}&pic=${imageUrl}`;
+  window.open(weiboUrl, '_blank');
+};
+
+const shareToQQ = () => {
+  const shareUrl = encodeURIComponent(window.location.href);
+  const title = encodeURIComponent(videoInfo.value?.vod_name || '');
+  const summary = encodeURIComponent(videoInfo.value?.vod_content?.substring(0, 50) || '');
+  const imageUrl = encodeURIComponent(videoInfo.value?.vod_pic || '');
+  
+  const qqUrl = `https://sns.qzone.qq.com/cgi-bin/qzshare/cgi_qzshare_onekey?url=${shareUrl}&title=${title}&pics=${imageUrl}&summary=${summary}`;
+  window.open(qqUrl, '_blank');
+};
+
+const copyShareLink = () => {
+  const input = document.createElement('input');
+  input.value = window.location.href;
+  document.body.appendChild(input);
+  input.select();
+  document.execCommand('copy');
+  document.body.removeChild(input);
+  
+  ElMessage({
+    message: '分享链接已复制到剪贴板',
+    type: 'success'
+  });
+};
+
+// 关闭二维码弹窗
+const closeQrCodeDialog = () => {
+  qrCodeDialogVisible.value = false;
+};
+
+const qrCodeDialogVisible = ref(false);
+
+// 获取当前页面URL用于生成二维码
+const currentPageUrl = ref(window.location.href);
 </script>
 
 <style scoped>
@@ -2736,5 +2840,33 @@ const playVideo = (episode) => {
     height: 40px;
     line-height: 40px;
   }
+}
+
+.share-dropdown {
+  margin-left: 0;
+}
+
+.share-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+}
+
+.share-icon {
+  font-size: 18px;
+}
+
+.qrcode-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 0;
+}
+
+.qrcode-tip {
+  margin-top: 15px;
+  color: #666;
+  font-size: 14px;
 }
 </style> 
