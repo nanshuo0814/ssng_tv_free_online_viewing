@@ -7,7 +7,16 @@
       </el-button>
     </div>
     <div v-if="loading" class="loading-container">
-      <el-skeleton :rows="10" animated />
+      <div class="custom-loader">
+        <div class="loader-wave">
+          <div class="wave-bar"></div>
+          <div class="wave-bar"></div>
+          <div class="wave-bar"></div>
+          <div class="wave-bar"></div>
+          <div class="wave-bar"></div>
+        </div>
+        <div class="loader-text">正在加载详情...</div>
+      </div>
     </div>
     
     <div v-else-if="error" class="error-container">
@@ -2054,21 +2063,82 @@ const playVideo = (episode) => {
 </script>
 
 <style scoped>
-.source {
-  /* margin-bottom: 20px; */
+.video-detail-page {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
-.source-title {
-  font-size: 18px;
-  font-weight: 600;
-  /* margin-bottom: 16px; */
-  /* padding-bottom: 12px; */
+.loading-container,
+.error-container,
+.empty-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 300px;
+  width: 100%;
+}
+
+/* 自定义加载动画 */
+.custom-loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.loader-wave {
+  display: flex;
+  align-items: flex-end;
+  height: 50px;
+  gap: 6px;
+}
+
+.wave-bar {
+  width: 8px;
+  background-color: var(--theme-color, #409EFF);
+  border-radius: 4px;
+  animation: wave 1s ease-in-out infinite;
+}
+
+.wave-bar:nth-child(2) {
+  animation-delay: 0.1s;
+}
+
+.wave-bar:nth-child(3) {
+  animation-delay: 0.2s;
+}
+
+.wave-bar:nth-child(4) {
+  animation-delay: 0.3s;
+}
+
+.wave-bar:nth-child(5) {
+  animation-delay: 0.4s;
+}
+
+@keyframes wave {
+  0% {
+    height: 10px;
+  }
+  50% {
+    height: 40px;
+  }
+  100% {
+    height: 10px;
+  }
+}
+
+.loader-text {
+  margin-top: 16px;
+  font-size: 16px;
   color: var(--text-color);
 }
 
 .back-button-container {
   padding: 16px;
   padding-left: 0;
+  margin-bottom: 20px;
 }
 
 .back-button {
@@ -2077,31 +2147,22 @@ const playVideo = (episode) => {
   gap: 4px;
 }
 
-.video-detail-page {
-  max-width: 1200px;
-  margin: 0 auto;
-  color: var(--text-color);
-}
-
-.video-detail-content {
-  padding: 0 20px 20px;
-  position: relative;
-}
-
-.loading-container,
-.error-container,
-.empty-container {
-  min-height: 500px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
 .video-detail-content {
   background-color: var(--card-background);
   border-radius: 12px;
   padding: 24px;
   box-shadow: var(--card-shadow);
+  position: relative;
+}
+
+.source {
+  margin-bottom: 20px;
+}
+
+.source-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-color);
 }
 
 .video-info-section {

@@ -17,7 +17,16 @@
 
     <!-- 加载状态 -->
     <div v-if="loading" class="loading-container">
-      <el-skeleton :rows="5" animated :theme="isDarkTheme ? 'dark' : 'light'" />
+      <div class="custom-loader">
+        <div class="loader-wave">
+          <div class="wave-bar"></div>
+          <div class="wave-bar"></div>
+          <div class="wave-bar"></div>
+          <div class="wave-bar"></div>
+          <div class="wave-bar"></div>
+        </div>
+        <div class="loader-text">加载中...</div>
+      </div>
     </div>
 
     <!-- 电影列表 -->
@@ -302,6 +311,66 @@ onUnmounted(() => {
 /* 加载状态 */
 .loading-container {
   padding: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 300px;
+}
+
+/* 自定义加载动画 */
+.custom-loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.loader-wave {
+  display: flex;
+  align-items: flex-end;
+  height: 50px;
+  gap: 6px;
+}
+
+.wave-bar {
+  width: 8px;
+  background-color: var(--theme-color, #409EFF);
+  border-radius: 4px;
+  animation: wave 1s ease-in-out infinite;
+}
+
+.wave-bar:nth-child(2) {
+  animation-delay: 0.1s;
+}
+
+.wave-bar:nth-child(3) {
+  animation-delay: 0.2s;
+}
+
+.wave-bar:nth-child(4) {
+  animation-delay: 0.3s;
+}
+
+.wave-bar:nth-child(5) {
+  animation-delay: 0.4s;
+}
+
+@keyframes wave {
+  0% {
+    height: 10px;
+  }
+  50% {
+    height: 40px;
+  }
+  100% {
+    height: 10px;
+  }
+}
+
+.loader-text {
+  margin-top: 16px;
+  font-size: 16px;
+  color: var(--text-color);
 }
 
 /* 电影网格 */
