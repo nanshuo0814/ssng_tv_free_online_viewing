@@ -10,8 +10,8 @@
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.1.0",
+    "artplayer": "^5.2.3",
     "axios": "^1.8.4",
-    "dplayer": "^1.27.1",
     "element-plus": "^2.3.9",
     "hls.js": "^1.6.2",
     "pinia": "^2.1.6",

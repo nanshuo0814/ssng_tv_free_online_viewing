@@ -177,12 +177,18 @@ const playLists = computed(() => {
 
 // 播放器URL
 const playerUrl = computed(() => {
-  // 这里可以根据需要使用不同的播放器URL
-  // 简单示例使用DPlayer
+  // 视频播放地址
   if (!currentPlayUrl.value) return '';
   
-  // 使用自定义播放页面，传递视频URL和标题作为参数
-  return `/player.html?url=${encodeURIComponent(currentPlayUrl.value)}&title=${encodeURIComponent(videoInfo.value ? videoInfo.value.vod_name : '')}`;
+  // 构建基本URL参数
+  let url = `/player.html?url=${encodeURIComponent(currentPlayUrl.value)}&title=${encodeURIComponent(videoInfo.value ? videoInfo.value.vod_name : '')}`;
+  
+  // 如果存在字幕数据，添加到URL参数中
+  if (videoInfo.value && videoInfo.value.vod_subtitle) {
+    url += `&subtitle=${encodeURIComponent(videoInfo.value.vod_subtitle)}`;
+  }
+  
+  return url;
 });
 
 // 加载视频详情

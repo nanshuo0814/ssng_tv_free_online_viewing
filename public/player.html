@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>视频播放器</title>
   <link rel="icon" href="/favicon.ico">
+  <!-- 引入ArtPlayer样式 -->
+  <script src="https://cdn.jsdelivr.net/npm/artplayer/dist/artplayer.js"></script>
+  <!-- 引入HLS.js支持m3u8播放 -->
+  <script src="https://cdn.jsdelivr.net/npm/hls.js/dist/hls.min.js"></script>
   <style>
     html, body {
       margin: 0;
@@ -110,60 +114,114 @@
   </div>
   
   <script>
-    // 从URL参数中获取视频地址和标题
-    function getUrlParams() {
-      const params = new URLSearchParams(window.location.search);
-      const url = params.get('url') || '';
-      const title = params.get('title') || '未知视频';
-      return { url, title };
+    // 获取URL参数
+    function getQueryParam(name) {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get(name);
     }
+
+    // 视频地址和标题
+    const videoUrl = getQueryParam('url');
+    const videoTitle = getQueryParam('title') || '视频播放';
+    const subtitleUrl = getQueryParam('subtitle') || '';
+    
+    // 更新页面标题
+    document.title = videoTitle;
+    document.getElementById('videoTitle').textContent = videoTitle;
     
     // 初始化播放器
-    function initPlayer() {
-      const { url, title } = getUrlParams();
-      const titleElement = document.getElementById('videoTitle');
-      const playerFrame = document.getElementById('playerFrame');
-      const loadingIndicator = document.getElementById('loadingIndicator');
-      
-      // 设置标题
-      titleElement.textContent = title;
-      document.title = `正在播放: ${title}`;
-      
+    function initializePlayer(url) {
       if (!url) {
-        loadingIndicator.textContent = '播放地址无效';
+        document.getElementById('loadingIndicator').textContent = '播放地址无效';
         return;
       }
       
-      // 创建iframe
-      const iframe = document.createElement('iframe');
-      iframe.style.width = '100%';
-      iframe.style.height = '100%';
-      iframe.style.border = 'none';
-      iframe.allowFullscreen = true;
+      document.getElementById('loadingIndicator').style.display = 'none';
       
-      // 根据URL类型选择不同的播放方式
-      if (url.includes('.m3u8')) {
-        // 使用HLS.js播放m3u8
-        iframe.src = `https://api.pearktrue.cn/api/player/index.php?url=${encodeURIComponent(url)}`;
-      } else if (url.includes('.mp4') || url.includes('.avi') || url.includes('.mkv')) {
-        // 直接播放MP4等格式
-        iframe.src = url;
-      } else {
-        // 使用通用解析接口
-        iframe.src = `https://jx.jsonplayer.com/player/?url=${encodeURIComponent(url)}`;
-      }
+      const art = new Artplayer({
+        container: '#playerFrame',
+        url: url,
+        title: videoTitle,
+        volume: 0.8,
+        isLive: false,
+        muted: false,
+        autoplay: true,
+        pip: true,
+        autoSize: true,
+        autoMini: true,
+        screenshot: true,
+        setting: true,
+        loop: false,
+        flip: true,
+        playbackRate: true,
+        aspectRatio: true,
+        fullscreen: true,
+        fullscreenWeb: true,
+        subtitleOffset: true,
+        miniProgressBar: true,
+        mutex: true,
+        backdrop: true,
+        playsInline: true,
+        autoPlayback: true,
+        theme: '#23ade5',
+        lang: navigator.language.toLowerCase(),
+        moreVideoAttr: {
+          crossOrigin: 'anonymous',
+        },
+        subtitles: subtitleUrl ? [{
+          url: subtitleUrl,
+          type: 'vtt',
+          default: true
+        }] : [],
+        customType: {
+          m3u8: function(video, url) {
+            if (Hls.isSupported()) {
+              const hls = new Hls({
+                maxBufferLength: 60,
+                maxMaxBufferLength: 90,
+                maxBufferSize: 100 * 1000 * 1000,
+                maxBufferHole: 1,
+                lowLatencyMode: false,
+                manifestLoadingMaxRetry: 6,
+                levelLoadingMaxRetry: 6, 
+                fragLoadingMaxRetry: 6,
+                fragLoadingMaxRetryTimeout: 10000
+              });
+              
+              hls.loadSource(url);
+              hls.attachMedia(video);
+              
+              hls.on(Hls.Events.ERROR, function(event, data) {
+                if (data.fatal) {
+                  switch (data.type) {
+                    case Hls.ErrorTypes.NETWORK_ERROR:
+                      console.error('HLS网络错误:', data);
+                      hls.startLoad();
+                      break;
+                    case Hls.ErrorTypes.MEDIA_ERROR:
+                      console.error('HLS媒体错误:', data);
+                      hls.recoverMediaError();
+                      break;
+                    default:
+                      console.error('HLS致命错误:', data);
+                      break;
+                  }
+                }
+              });
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+              video.src = url;
+            }
+          }
+        }
+      });
       
-      // 监听iframe加载事件
-      iframe.onload = function() {
-        loadingIndicator.style.display = 'none';
-      };
-      
-      // 添加到容器
-      playerFrame.appendChild(iframe);
+      window.art = art;
     }
     
     // 页面加载完成后初始化播放器
-    window.onload = initPlayer;
+    window.onload = function() {
+      initializePlayer(videoUrl);
+    };
   </script>
 </body>
 </html> 
