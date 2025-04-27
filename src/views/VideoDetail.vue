@@ -683,14 +683,11 @@ watch(() => activePlaySource.value, async (newSource, oldSource) => {
   currentPlayUrl.value = '';
   
   // 根据不同的播放源类型获取影片信息
-  if (currentSource.sourceKey === 'ikun') {
+  if (currentSource.sourceKey === 'ikun' && !ikunLoaded.value) {
     // 如果是爱坤源，则获取详细信息
     currentSourceLoading.value = true;
     try {
-      // 等待爱坤源加载完毕
-      if (!ikunLoaded.value) {
-        await fetchIkunSource();
-      }
+      await fetchIkunSource();
       
       // 更新UI显示
       if (ikunDetailInfo.value) {
@@ -703,14 +700,11 @@ watch(() => activePlaySource.value, async (newSource, oldSource) => {
       // 刷新DOM以确保内容显示
       await nextTick();
     }
-  } else if (currentSource.sourceKey === 'subo') {
+  } else if (currentSource.sourceKey === 'subo' && !suboLoaded.value) {
     // 如果是速播源，则获取详细信息
     currentSourceLoading.value = true;
     try {
-      // 等待速播源加载完毕
-      if (!suboLoaded.value) {
-        await fetchSuboSource();
-      }
+      await fetchSuboSource();
       
       // 更新UI显示
       if (suboDetailInfo.value) {
@@ -723,14 +717,11 @@ watch(() => activePlaySource.value, async (newSource, oldSource) => {
       // 刷新DOM以确保内容显示
       await nextTick();
     }
-  } else if (currentSource.sourceKey === 'huawei') {
+  } else if (currentSource.sourceKey === 'huawei' && !huaweiLoaded.value) {
     // 如果是华为源，则获取详细信息
     currentSourceLoading.value = true;
     try {
-      // 等待华为源加载完毕
-      if (!huaweiLoaded.value) {
-        await fetchHuaweiSource();
-      }
+      await fetchHuaweiSource();
       
       // 更新UI显示
       if (huaweiDetailInfo.value) {
@@ -743,14 +734,11 @@ watch(() => activePlaySource.value, async (newSource, oldSource) => {
       // 刷新DOM以确保内容显示
       await nextTick();
     }
-  } else if (currentSource.sourceKey === 'jisu') {
+  } else if (currentSource.sourceKey === 'jisu' && !jisuLoaded.value) {
     // 如果是急速源，则获取详细信息
     currentSourceLoading.value = true;
     try {
-      // 等待急速源加载完毕
-      if (!jisuLoaded.value) {
-        await fetchJisuSource();
-      }
+      await fetchJisuSource();
       
       // 更新UI显示
       if (jisuDetailInfo.value) {
@@ -763,14 +751,11 @@ watch(() => activePlaySource.value, async (newSource, oldSource) => {
       // 刷新DOM以确保内容显示
       await nextTick();
     }
-  } else if (currentSource.sourceKey === '360') {
+  } else if (currentSource.sourceKey === '360' && !videozy360Loaded.value) {
     // 如果是360源，则获取详细信息
     currentSourceLoading.value = true;
     try {
-      // 等待360源加载完毕
-      if (!videozy360Loaded.value) {
-        await fetch360Source();
-      }
+      await fetch360Source();
       
       // 更新UI显示
       if (videozy360DetailInfo.value) {
@@ -783,14 +768,11 @@ watch(() => activePlaySource.value, async (newSource, oldSource) => {
       // 刷新DOM以确保内容显示
       await nextTick();
     }
-  } else if (currentSource.sourceKey === 'wolong') {
+  } else if (currentSource.sourceKey === 'wolong' && !wolongLoaded.value) {
     // 如果是卧龙源，则获取详细信息
     currentSourceLoading.value = true;
     try {
-      // 等待卧龙源加载完毕
-      if (!wolongLoaded.value) {
-        await fetchWolongSource();
-      }
+      await fetchWolongSource();
       
       // 更新UI显示
       if (wolongDetailInfo.value) {
@@ -804,47 +786,37 @@ watch(() => activePlaySource.value, async (newSource, oldSource) => {
       await nextTick();
     }
   } else {
-    // 如果是从爱坤源、速播源、华为源、急速源、360源或卧龙源切换回其他源，恢复原始数据
-    if (oldSource) {
-      const oldSourceKey = playLists.value.find(source => source.source === oldSource)?.sourceKey;
-      if (oldSourceKey === 'ikun' || oldSourceKey === 'subo' || oldSourceKey === 'huawei' ||
-          oldSourceKey === 'jisu' || oldSourceKey === '360' || oldSourceKey === 'wolong') {
-        if (originalVideoInfo.value) {
-          console.log('从特殊源切换回来，恢复原始数据');
-          videoInfo.value = { ...originalVideoInfo.value };
-          // 刷新DOM以确保内容显示
-          await nextTick();
-        }
+    // 已加载过的源不需要再次加载
+    if (currentSource.sourceKey === 'ikun' && ikunDetailInfo.value) {
+      updateIkunDetailDisplay();
+    } else if (currentSource.sourceKey === 'subo' && suboDetailInfo.value) {
+      updateSuboDetailDisplay();
+    } else if (currentSource.sourceKey === 'huawei' && huaweiDetailInfo.value) {
+      updateHuaweiDetailDisplay();
+    } else if (currentSource.sourceKey === 'jisu' && jisuDetailInfo.value) {
+      updateJisuDetailDisplay();
+    } else if (currentSource.sourceKey === '360' && videozy360DetailInfo.value) {
+      update360DetailDisplay();
+    } else if (currentSource.sourceKey === 'wolong' && wolongDetailInfo.value) {
+      updateWolongDetailDisplay();
+    } else if (videoInfo.value._source) {
+      // 如果是从特殊源切换回普通源，恢复原始数据
+      console.log('从特殊源切换回普通源，恢复原始数据');
+      if (originalVideoInfo.value) {
+        videoInfo.value = { ...originalVideoInfo.value };
       }
     }
   }
   
   // 强制触发playLists的重新计算
-  const tempVideoInfo = { ...videoInfo.value };
-  videoInfo.value = null;
   await nextTick();
-  videoInfo.value = tempVideoInfo;
-  await nextTick();
-  
-  // 触发立即播放按钮文本更新
-  console.log('当前播放源状态已更新，立即播放按钮文本:', getPlayButtonText());
-  
-  // 重新获取最新的当前源，确保我们使用的是最新的数据
-  const updatedSource = playLists.value.find(source => source.source === newSource);
-  if (!updatedSource) {
-    console.log('更新后未找到当前播放源:', newSource);
-    return;
-  }
   
   // 无论是哪种源，都确保选择第一集
-  console.log(`当前源 ${newSource} 的剧集数:`, updatedSource.episodes?.length);
-  if (updatedSource.episodes && updatedSource.episodes.length > 0) {
+  const updatedSource = playLists.value.find(source => source.source === newSource);
+  if (updatedSource && updatedSource.episodes && updatedSource.episodes.length > 0) {
+    console.log(`选择第一集，当前源 ${newSource} 的剧集数: ${updatedSource.episodes.length}`);
     const firstEpisodeUrl = updatedSource.episodes[0].url;
-    console.log(`选择第一集: ${firstEpisodeUrl}`);
     activeEpisode.value = firstEpisodeUrl;
-    currentPlayUrl.value = firstEpisodeUrl;
-  } else {
-    console.log(`${newSource} 源没有可用剧集`);
   }
 });
 
@@ -875,28 +847,72 @@ const updateIkunDetailDisplay = () => {
 };
 
 // 获取匹配的爱坤影片
-const getIkunMatchedMovie = async () => {
-  try {
-    const response = await axios.get(`/ikun/api.php/provide/vod/`, {
-      params: {
-        ac: 'videolist',
-        wd: videoInfo.value.vod_name
-      }
-    });
-    
-    if (response.data && response.data.code === 1 && response.data.list && response.data.list.length > 0) {
-      // 找到最匹配的影片
-      return response.data.list.find(item => 
-        item.vod_name === videoInfo.value.vod_name || 
-        (item.vod_sub && item.vod_sub.includes(videoInfo.value.vod_name))
-      ) || response.data.list[0];
-    }
-  } catch (error) {
-    console.error('查找匹配的爱坤影片失败:', error);
+async function getIkunMatchedMovie() {
+  if (!videoInfo.value || !videoInfo.value.vod_name) {
+    console.log('没有原始影片信息，无法查找爱坤匹配影片');
+    return null;
   }
   
-  return null;
-};
+  try {
+    // 使用名称搜索爱坤API
+    const searchName = videoInfo.value.vod_name.trim();
+    console.log('使用名称搜索爱坤匹配影片:', searchName);
+    
+    // 使用带超时和重试的请求
+    const response = await requestWithRetry(
+      () => axios.get(`/ikun/api.php/provide/vod/`, {
+        params: {
+          ac: 'list',
+          wd: searchName
+        }
+      }),
+      2, // 最多重试2次
+      10000, // 10秒超时
+      '爱坤搜索请求超时'
+    );
+    
+    const result = response.data;
+    
+    if (result && result.code === 1 && result.list && result.list.length > 0) {
+      console.log(`爱坤搜索到 ${result.list.length} 条结果`);
+      
+      // 尝试找到完全匹配的影片
+      let exactMatch = result.list.find(item => item.vod_name === searchName);
+      
+      if (exactMatch) {
+        console.log('找到精确匹配的爱坤影片:', exactMatch.vod_name);
+        return exactMatch;
+      }
+      
+      // 如果没有完全匹配，尝试找到包含原始名称的影片
+      const partialMatches = result.list.filter(item => 
+        item.vod_name.includes(searchName) || searchName.includes(item.vod_name)
+      );
+      
+      if (partialMatches.length > 0) {
+        // 如果有多个结果，选择名称最接近的那个
+        const bestMatch = partialMatches.reduce((best, current) => {
+          const bestDiff = Math.abs(best.vod_name.length - searchName.length);
+          const currentDiff = Math.abs(current.vod_name.length - searchName.length);
+          return currentDiff < bestDiff ? current : best;
+        }, partialMatches[0]);
+        
+        console.log('找到最佳匹配的爱坤影片:', bestMatch.vod_name);
+        return bestMatch;
+      }
+      
+      // 如果仍然没有合适的匹配，返回第一个结果
+      console.log('没有找到合适的匹配，使用第一个结果:', result.list[0].vod_name);
+      return result.list[0];
+    } else {
+      console.log('爱坤API未返回有效搜索结果');
+      return null;
+    }
+  } catch (error) {
+    console.error('搜索爱坤影片失败:', error);
+    return null;
+  }
+}
 
 // 获取爱坤播放源数据
 const fetchIkunSource = async () => {
@@ -907,19 +923,35 @@ const fetchIkunSource = async () => {
   
   try {
     console.log('开始获取爱坤源...');
-    // 使用影片名称搜索爱坤资源
-    const matchedMovie = await getIkunMatchedMovie();
+    
+    // 设置请求超时
+    const timeout = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('爱坤源请求超时')), 10000)
+    );
+    
+    // 使用Promise.race实现超时控制
+    const matchedMovie = await Promise.race([
+      getIkunMatchedMovie(),
+      timeout
+    ]);
     
     if (matchedMovie && matchedMovie.vod_play_url) {
       console.log('找到匹配的爱坤电影:', matchedMovie.vod_name);
       // 先获取完整的详情信息
       try {
-        const detailResponse = await axios.get(`/ikun/api.php/provide/vod/`, {
-          params: {
-            ac: 'detail',
-            ids: matchedMovie.vod_id
-          }
-        });
+        const detailTimeout = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('爱坤详情请求超时')), 10000)
+        );
+        
+        const detailResponse = await Promise.race([
+          axios.get(`/ikun/api.php/provide/vod/`, {
+            params: {
+              ac: 'detail',
+              ids: matchedMovie.vod_id
+            }
+          }),
+          detailTimeout
+        ]);
         
         if (detailResponse.data && detailResponse.data.code === 1 && 
             detailResponse.data.list && detailResponse.data.list.length > 0) {
@@ -974,6 +1006,37 @@ const fetchIkunSource = async () => {
   } finally {
     ikunLoading.value = false;
   }
+};
+
+// 封装一个通用的带超时的异步请求函数
+const requestWithTimeout = async (requestPromise, timeoutMs = 10000, errorMessage = '请求超时') => {
+  const timeout = new Promise((_, reject) => 
+    setTimeout(() => reject(new Error(errorMessage)), timeoutMs)
+  );
+  
+  return Promise.race([requestPromise, timeout]);
+};
+
+// 封装一个带重试功能的请求函数
+const requestWithRetry = async (requestFn, maxRetries = 2, timeoutMs = 10000, errorMessage = '请求超时') => {
+  let lastError;
+  
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      // 如果不是第一次尝试，添加延迟，避免频繁请求
+      if (attempt > 0) {
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+        console.log(`第${attempt}次重试请求...`);
+      }
+      
+      return await requestWithTimeout(requestFn(), timeoutMs, errorMessage);
+    } catch (error) {
+      console.error(`请求失败 (尝试 ${attempt + 1}/${maxRetries + 1}):`, error);
+      lastError = error;
+    }
+  }
+  
+  throw lastError;
 };
 
 // 播放器URL
@@ -1032,21 +1095,33 @@ async function loadVideoDetail() {
       const sourceFromUrl = route.query.source;
       console.log('URL指定的播放源:', sourceFromUrl);
       
-      // 如果是华为源，先加载华为源数据
-      if (sourceFromUrl === 'huawei') {
-        console.log('正在加载华为源数据...');
-        await fetchHuaweiSource();
+      // 优先加载默认源和URL指定的源，其他源懒加载
+      if (sourceFromUrl) {
+        // 根据URL中的source参数优先加载指定源
+        switch(sourceFromUrl) {
+          case 'ikun':
+            await fetchIkunSource();
+            break;
+          case 'subo':
+            await fetchSuboSource();
+            break;
+          case 'huawei':
+            await fetchHuaweiSource();
+            break;
+          case 'jisu':
+            await fetchJisuSource();
+            break;
+          case '360':
+            await fetch360Source();
+            break;
+          case 'wolong':
+            await fetchWolongSource();
+            break;
+          default:
+            // 不需要优先加载其他源
+            break;
+        }
       }
-      
-      // 等待其他源数据加载
-      await Promise.all([
-        fetchIkunSource(),
-        fetchSuboSource(),
-        sourceFromUrl !== 'huawei' ? fetchHuaweiSource() : Promise.resolve(),
-        fetchJisuSource(),
-        fetch360Source(),
-        fetchWolongSource()
-      ]);
       
       // 等待DOM更新
       await nextTick();
@@ -1118,6 +1193,11 @@ async function loadVideoDetail() {
           activeEpisode.value = currentSource.episodes[0].url;
         }
       }
+      
+      // 在页面显示后，开始在后台加载其他播放源数据
+      setTimeout(() => {
+        loadOtherSourcesInBackground(sourceFromUrl);
+      }, 1000);
     } else {
       error.value = '未找到影片信息';
     }
@@ -1127,6 +1207,53 @@ async function loadVideoDetail() {
   } finally {
     loading.value = false;
   }
+}
+
+// 在后台加载其他播放源数据，不阻塞页面渲染
+async function loadOtherSourcesInBackground(prioritySource) {
+  console.log('后台加载其他播放源数据...');
+  
+  // 创建一个加载队列，按优先级排序
+  const loadQueue = [];
+  
+  // 根据当前已加载的源情况，决定要加载哪些源
+  if (!ikunLoaded.value && prioritySource !== 'ikun') {
+    loadQueue.push(() => fetchIkunSource());
+  }
+  
+  if (!suboLoaded.value && prioritySource !== 'subo') {
+    loadQueue.push(() => fetchSuboSource());
+  }
+  
+  if (!huaweiLoaded.value && prioritySource !== 'huawei') {
+    loadQueue.push(() => fetchHuaweiSource());
+  }
+  
+  if (!jisuLoaded.value && prioritySource !== 'jisu') {
+    loadQueue.push(() => fetchJisuSource());
+  }
+  
+  if (!videozy360Loaded.value && prioritySource !== '360') {
+    loadQueue.push(() => fetch360Source());
+  }
+  
+  if (!wolongLoaded.value && prioritySource !== 'wolong') {
+    loadQueue.push(() => fetchWolongSource());
+  }
+  
+  // 使用Promise.all并行加载，但限制最大并行数为2，避免过多请求
+  const batchSize = 2;
+  for (let i = 0; i < loadQueue.length; i += batchSize) {
+    const batch = loadQueue.slice(i, i + batchSize);
+    try {
+      await Promise.all(batch.map(loader => loader()));
+    } catch (error) {
+      console.error('后台加载源数据出错:', error);
+      // 继续加载其他源，不中断
+    }
+  }
+  
+  console.log('所有播放源数据加载完成');
 }
 
 // 格式化内容
@@ -2136,9 +2263,9 @@ const playVideo = (episode) => {
 }
 
 .back-button-container {
-  padding: 16px;
+  /* padding: 16px; */
   padding-left: 0;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .back-button {
