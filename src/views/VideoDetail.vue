@@ -147,12 +147,19 @@
                       <span>QQ</span>
                     </div>
                   </el-dropdown-item>
+                  <el-dropdown-item @click="generatePosterShare">
+                    <div class="share-item">
+                      <i class="fa-solid fa-image share-icon" style="color: #8A2BE2;"></i>
+                      <span>海报分享</span>
+                    </div>
+                  </el-dropdown-item>
                   <el-dropdown-item @click="copyShareLink">
                     <div class="share-item">
-                      <i class="fa-solid fa-link share-icon"></i>
+                      <i class="fa-solid fa-link share-icon" style="color: blue;"></i>
                       <span>复制链接</span>
                     </div>
                   </el-dropdown-item>
+                  
                 </el-dropdown-menu>
               </template>
             </el-dropdown>
@@ -223,7 +230,7 @@
       width="300px"
       center
     >
-      <div class="qrcode-content">
+      <div class="qrcode-content" ref="qrCodeContainer">
         <qrcode-vue 
           :value="currentPageUrl" 
           :size="200" 
@@ -231,13 +238,69 @@
           render-as="canvas"
         ></qrcode-vue>
         <p class="qrcode-tip">请使用微信"扫一扫"扫描二维码</p>
+        <el-button type="primary" @click="downloadQRCode" style="margin-top: 10px;">
+          <el-icon class="button-icon"><Download /></el-icon>
+          下载二维码
+        </el-button>
+      </div>
+    </el-dialog>
+
+    <!-- 海报分享弹窗 -->
+    <el-dialog
+      v-model="posterDialogVisible"
+      title="海报分享"
+      width="350px"
+      center
+    >
+      <div class="poster-content" ref="posterContainer">
+        <div class="share-poster">
+          <div class="poster-header">
+            <img :src="videoInfo?.vod_pic || '/src/assets/default-poster.svg'" class="poster-image" />
+            <div class="poster-info">
+              <div class="title-with-rating">
+                <h2 class="poster-title">{{ videoInfo?.vod_name }}</h2>
+                <div class="poster-score" v-if="videoInfo?.vod_score">
+                  <span class="score-value">{{ videoInfo.vod_score }}</span>
+                  <span class="score-text"></span>
+                </div>
+              </div>
+              <div class="poster-meta">
+                <div v-if="videoInfo?.vod_year">{{ videoInfo.vod_year }}</div>
+                <div v-if="videoInfo?.vod_area">{{ videoInfo.vod_area }}</div>
+                <div v-if="videoInfo?.type_name">{{ videoInfo.type_name }}</div>                
+                <div v-if="videoInfo?.vod_remarks">{{ videoInfo.vod_remarks }}</div>
+                <div v-if="videoInfo?.vod_actor">{{ videoInfo.vod_actor }}</div>
+                <!-- <div v-if="videoInfo?.vod_director">{{ videoInfo.vod_director }}</div> -->
+              </div>
+            </div>
+          </div>
+          <div class="poster-desc" v-if="videoInfo?.vod_content">
+            {{ videoInfo.vod_content.substring(0, 100) }}{{ videoInfo.vod_content.length > 100 ? '...' : '' }}
+          </div>
+          <div class="poster-footer">
+            <qrcode-vue 
+              :value="currentPageUrl" 
+              :size="80" 
+              level="M" 
+              render-as="canvas"
+            ></qrcode-vue>
+            <div class="poster-qr-tip">
+              <div>扫码观看</div>
+              <div>SSNG TV - 在线影视网站</div>
+            </div>
+          </div>
+        </div>
+        <el-button type="primary" @click="downloadPoster" style="margin-top: 15px; width: 100%;">
+          <el-icon class="button-icon"><Download /></el-icon>
+          下载海报
+        </el-button>
       </div>
     </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch, nextTick } from 'vue';
+import { ref, computed, onMounted, watch, nextTick, watchEffect } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
 import { ElMessage } from 'element-plus';
@@ -245,6 +308,7 @@ import { VideoPlay, Star, SortUp, SortDown, Back, Loading, VideoCamera, Download
 import { useHistoryStore } from '../stores/history'
 import { useFavoriteStore } from '../stores/favorite'
 import QrcodeVue from 'qrcode.vue';
+import html2canvas from 'html2canvas';
 
 // 从路由参数中获取视频ID
 const route = useRoute();
@@ -2282,6 +2346,58 @@ const copyShareLink = () => {
   });
 };
 
+// 海报分享
+const posterDialogVisible = ref(false);
+const posterContainer = ref(null);
+
+const generatePosterShare = () => {
+  currentPageUrl.value = window.location.href;
+  posterDialogVisible.value = true;
+};
+
+const downloadPoster = async () => {
+  if (!posterContainer.value) return;
+  
+  try {
+    // 等待一下确保内容渲染完成
+    await nextTick();
+    
+    // 找到海报元素
+    const poster = posterContainer.value.querySelector('.share-poster');
+    if (!poster) {
+      ElMessage.error('无法获取海报内容');
+      return;
+    }
+    
+    // 使用html2canvas将DOM元素转换为canvas
+    const canvas = await html2canvas(poster, {
+      useCORS: true, // 允许跨域图片
+      scale: 2, // 提高清晰度
+      backgroundColor: null,
+      logging: false
+    });
+    
+    // 创建下载链接
+    const link = document.createElement('a');
+    link.href = canvas.toDataURL('image/png');
+    const fileName = `${videoInfo.value?.vod_name || '影视'}_海报分享.png`;
+    link.download = fileName;
+    
+    // 触发下载
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    ElMessage({
+      message: '海报已下载',
+      type: 'success'
+    });
+  } catch (error) {
+    console.error('下载海报失败:', error);
+    ElMessage.error('下载海报失败');
+  }
+};
+
 // 关闭二维码弹窗
 const closeQrCodeDialog = () => {
   qrCodeDialogVisible.value = false;
@@ -2291,6 +2407,46 @@ const qrCodeDialogVisible = ref(false);
 
 // 获取当前页面URL用于生成二维码
 const currentPageUrl = ref(window.location.href);
+
+// 下载二维码
+const qrCodeContainer = ref(null);
+const downloadQRCode = () => {
+  if (!qrCodeContainer.value) return;
+  
+  try {
+    // 获取二维码容器中的canvas元素
+    const canvas = qrCodeContainer.value.querySelector('canvas');
+    if (!canvas) {
+      ElMessage.error('无法获取二维码图像');
+      return;
+    }
+    
+    // 创建一个临时的链接元素
+    const link = document.createElement('a');
+    
+    // 将canvas转换为图片数据
+    link.href = canvas.toDataURL('image/png');
+    
+    // 设置下载的文件名
+    const fileName = `微信二维码_${videoInfo.value?.vod_name || '分享'}.png`;
+    link.download = fileName;
+    
+    // 添加到文档中并触发点击
+    document.body.appendChild(link);
+    link.click();
+    
+    // 移除临时元素
+    document.body.removeChild(link);
+    
+    ElMessage({
+      message: '二维码已下载',
+      type: 'success'
+    });
+  } catch (error) {
+    console.error('下载二维码失败:', error);
+    ElMessage.error('下载二维码失败');
+  }
+};
 </script>
 
 <style scoped>
@@ -2840,6 +2996,18 @@ const currentPageUrl = ref(window.location.href);
     height: 40px;
     line-height: 40px;
   }
+  
+  .title-with-rating {
+    flex-wrap: wrap;
+  }
+  
+  .poster-title {
+    font-size: 16px;
+  }
+  
+  .score-value {
+    font-size: 20px;
+  }
 }
 
 .share-dropdown {
@@ -2861,12 +3029,130 @@ const currentPageUrl = ref(window.location.href);
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 20px 0;
+  text-align: center;
 }
 
 .qrcode-tip {
-  margin-top: 15px;
-  color: #666;
+  margin-top: 12px;
+  color: var(--text-color-secondary);
   font-size: 14px;
+}
+
+/* 海报分享样式 */
+.poster-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.share-poster {
+  width: 300px;
+  background-color: var(--card-background);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  padding: 8px;
+}
+
+.poster-header {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.poster-image {
+  width: 120px;
+  height: 160px;
+  object-fit: cover;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.poster-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.title-with-rating {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.poster-title {
+  font-size: 18px;
+  margin: 0;
+  color: var(--text-color);
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  flex: 1;
+}
+
+.poster-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 12px;
+}
+
+.poster-meta div {
+  background-color: rgba(var(--theme-color-rgb), 0.1);
+  color: var(--theme-color);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.poster-score {
+  display: flex;
+  align-items: baseline;
+  white-space: nowrap;
+}
+
+.score-value {
+  font-size: 24px;
+  font-weight: bold;
+  color: #ff9900;
+}
+
+.score-text {
+  font-size: 14px;
+  color: #ff9900;
+  margin-left: 2px;
+}
+
+.poster-desc {
+  font-size: 13px;
+  color: var(--text-color-secondary);
+  line-height: 1.5;
+  margin-bottom: 15px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.poster-footer {
+  padding-top: 15px;
+  border-top: 1px dashed var(--border-color);
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.poster-qr-tip {
+  font-size: 14px;
+  color: var(--text-color);
+  line-height: 1.5;
+}
+
+.poster-qr-tip div:last-child {
+  font-weight: bold;
+  color: var(--theme-color);
 }
 </style> 
