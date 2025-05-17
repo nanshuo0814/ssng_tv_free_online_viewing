@@ -132,34 +132,33 @@
                   <el-dropdown-item @click="shareToWeChat">
                     <div class="share-item">
                       <i class="fa-brands fa-weixin share-icon" style="color: #07C160;"></i>
-                      <span>微信</span>
+                      <span class="share-text">微信</span>
                     </div>
                   </el-dropdown-item>
                   <el-dropdown-item @click="shareToWeibo">
                     <div class="share-item">
                       <i class="fa-brands fa-weibo share-icon" style="color: #E6162D;"></i>
-                      <span>微博</span>
+                      <span class="share-text">微博</span>
                     </div>
                   </el-dropdown-item>
                   <el-dropdown-item @click="shareToQQ">
                     <div class="share-item">
                       <i class="fa-brands fa-qq share-icon" style="color: #12B7F5;"></i>
-                      <span>QQ</span>
+                      <span class="share-text">QQ</span>
                     </div>
                   </el-dropdown-item>
                   <el-dropdown-item @click="generatePosterShare">
                     <div class="share-item">
                       <i class="fa-solid fa-image share-icon" style="color: #8A2BE2;"></i>
-                      <span>海报分享</span>
+                      <span class="share-text">海报分享</span>
                     </div>
                   </el-dropdown-item>
                   <el-dropdown-item @click="copyShareLink">
                     <div class="share-item">
                       <i class="fa-solid fa-link share-icon" style="color: blue;"></i>
-                      <span>复制链接</span>
+                      <span class="share-text">复制链接</span>
                     </div>
                   </el-dropdown-item>
-                  
                 </el-dropdown-menu>
               </template>
             </el-dropdown>
@@ -3015,14 +3014,36 @@ const downloadQRCode = () => {
 }
 
 .share-item {
-  display: flex;
+  display: grid;
+  grid-template-columns: 24px 1fr;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   padding: 5px 0;
+  width: 100%;
 }
 
 .share-icon {
   font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.share-text {
+  text-align: left;
+  font-size: 14px;
+}
+
+/* Element Plus 样式覆盖 */
+:deep(.el-dropdown-menu__item) {
+  padding: 8px 16px;
+  line-height: 1.5;
+  min-width: 140px;
+}
+
+:deep(.el-dropdown-menu__item:focus, .el-dropdown-menu__item:not(.is-disabled):hover) {
+  background-color: var(--hover-background);
+  color: var(--text-color);
 }
 
 .qrcode-content {
@@ -3048,7 +3069,7 @@ const downloadQRCode = () => {
 .share-poster {
   width: 300px;
   background-color: var(--card-background);
-  border-radius: 12px;
+  /* border-radius: 12px; */
   overflow: hidden;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
   padding: 8px;
