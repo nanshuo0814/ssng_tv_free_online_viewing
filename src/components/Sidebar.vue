@@ -35,6 +35,10 @@
           <Icon name="variety" :color="isActive('/variety') ? 'var(--theme-color)' : '#909399'" />
           <span>综艺</span>
         </router-link>
+        <router-link to="/external-video" class="nav-item" :class="{ 'active': isActive('/external-video') }">
+          <Icon name="VideoPlay" :color="isActive('/external-video') ? 'var(--theme-color)' : '#909399'" />
+          <span>凌云影视</span>
+        </router-link>
       </div>
       
       <!-- 个人中心 -->

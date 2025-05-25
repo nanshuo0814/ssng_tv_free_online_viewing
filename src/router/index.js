@@ -43,6 +43,14 @@ const routes = [
     component: VarietyNav
   },
   {
+    path: '/external-video',
+    name: 'ExternalVideo',
+    component: () => import('@/views/ExternalVideo.vue'),
+    meta: {
+      title: '凌云影视'
+    }
+  },
+  {
     path: '/search',
     name: 'Search',
     component: () => import('@/views/Search.vue')
