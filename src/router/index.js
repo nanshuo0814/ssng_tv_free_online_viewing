@@ -51,6 +51,14 @@ const routes = [
     }
   },
   {
+    path: '/soupian',
+    name: 'SouPian',
+    component: () => import('@/views/GuideView.vue'),
+    meta: {
+      title: '搜片.com'
+    }
+  },
+  {
     path: '/search',
     name: 'Search',
     component: () => import('@/views/Search.vue')

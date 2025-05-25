@@ -39,6 +39,10 @@
           <Icon name="VideoPlay" :color="isActive('/external-video') ? 'var(--theme-color)' : '#909399'" />
           <span>凌云影视</span>
         </router-link>
+        <router-link to="/soupian" class="nav-item" :class="{ 'active': isActive('/soupian') }">
+          <Icon name="Reading" :color="isActive('/soupian') ? 'var(--theme-color)' : '#909399'" />
+          <span>搜片.com</span>
+        </router-link>
       </div>
       
       <!-- 个人中心 -->
