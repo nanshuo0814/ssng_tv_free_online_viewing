@@ -51,6 +51,22 @@ const routes = [
     }
   },
   {
+    path: '/message-board',
+    name: 'MessageBoard',
+    component: () => import('@/views/MessageBoard.vue'),
+    meta: {
+      title: '评论留言'
+    }
+  },
+  {
+    path: '/soupian',
+    name: 'SouPian',
+    component: () => import('@/views/SouPianView.vue'),
+    meta: {
+      title: '搜片.com'
+    }
+  },
+  {
     path: '/search',
     name: 'Search',
     component: () => import('@/views/Search.vue')
