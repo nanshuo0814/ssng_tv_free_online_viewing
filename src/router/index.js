@@ -4,6 +4,7 @@ import HomePage from '../views/HomePage.vue'
 import MovieNav from '../views/MovieNav.vue'
 import AnimeNav from '../views/AnimeNav.vue'
 import VarietyNav from '../views/VarietyNav.vue'
+import MessageBoard from '../views/MessageBoard.vue'
 
 const routes = [
   {
@@ -91,6 +92,14 @@ const routes = [
     name: 'VideoPlay',
     component: () => import('../views/VideoPlay.vue'),
     props: true
+  },
+  {
+    path: '/message-board',
+    name: 'MessageBoard',
+    component: MessageBoard,
+    meta: {
+      title: '评论留言'
+    }
   },
   {
     path: '/:pathMatch(.*)*',

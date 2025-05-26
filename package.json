@@ -15,8 +15,10 @@
     "element-plus": "^2.3.9",
     "hls.js": "^1.6.2",
     "html2canvas": "^1.4.1",
+    "leancloud-storage": "^4.15.2",
     "pinia": "^2.1.6",
     "qrcode.vue": "^3.6.0",
+    "twikoo": "^1.6.44",
     "vue": "^3.3.4",
     "vue-router": "^4.2.4"
   },
