@@ -16,7 +16,7 @@ import { onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 
 // 设置页面标题
-document.title = '凌云影视 - 烁烁南光'
+// document.title = '凌云影视 - 烁烁南光'
 
 // 可以添加其他逻辑，如页面加载状态、错误处理等
 </script>

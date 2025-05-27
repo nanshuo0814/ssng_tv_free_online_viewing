@@ -2,7 +2,7 @@
   <!-- <div class="favorites-page"> -->
     <div class="favorites-header">
       <h2>我的收藏</h2>
-      <div class="header-buttons" v-if="favoriteStore.getFavoritesCount > 0">
+      <div class="header-buttons" v-if="favoriteStore.favorites.length > 0">
         <!-- 清空收藏按钮 -->
         <el-button 
           type="danger" 
@@ -255,24 +255,22 @@ const clearFilter = () => {
 
 // 筛选后的收藏列表
 const filteredFavorites = computed(() => {
+  const favorites = [...favoriteStore.favorites]
+  
   if (!selectedType.value || selectedType.value.length === 0) {
-    return favoriteStore.getFavorites
+    return favorites
   }
   
   // 主类型和子类型
   const mainType = selectedType.value[0]
   const subType = selectedType.value.length > 1 ? selectedType.value[1] : null
   
-  // 打印调试信息
-  console.log('筛选条件:', { mainType, subType })
-  console.log('收藏列表:', favoriteStore.getFavorites)
-  
   // 如果没有子类型，不进行筛选
   if (!subType) {
-    return favoriteStore.getFavorites
+    return favorites
   }
   
-  return favoriteStore.getFavorites.filter(item => {
+  return favorites.filter(item => {
     // 子类型映射表
     const subTypeMap = {
       // 电视剧子类型

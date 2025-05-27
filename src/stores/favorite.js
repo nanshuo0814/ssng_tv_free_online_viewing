@@ -42,7 +42,6 @@ export const useFavoriteStore = defineStore('favorite', {
     saveToLocal() {
       try {
         localStorage.setItem('favorites', JSON.stringify(this.favorites))
-        console.log('收藏已保存到本地存储')
       } catch (error) {
         console.error('保存收藏到本地存储失败:', error)
       }
@@ -53,7 +52,6 @@ export const useFavoriteStore = defineStore('favorite', {
         const saved = localStorage.getItem('favorites')
         if (saved) {
           this.favorites = JSON.parse(saved)
-          console.log('从本地存储加载收藏:', this.favorites)
         }
       } catch (error) {
         console.error('从本地存储加载收藏失败:', error)
@@ -65,11 +63,5 @@ export const useFavoriteStore = defineStore('favorite', {
     isFavorited(id) {
       return this.favorites.some(f => f.id === id)
     }
-  },
-
-  getters: {
-    getFavorites: (state) => state.favorites,
-    
-    getFavoritesCount: (state) => state.favorites.length
   }
 }) 

@@ -32,12 +32,25 @@
 
 <script setup>
 import { onMounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import Sidebar from './components/Sidebar.vue'
 import TopNavbar from './components/TopNavbar.vue'
 import { useThemeStore } from './stores/theme'
 import { useSidebarStore } from './stores/sidebar'
 import zhCn from 'element-plus/dist/locale/zh-cn.mjs'
+import NProgress from 'nprogress'
+import 'nprogress/nprogress.css'
 
+// 配置NProgress
+NProgress.configure({ 
+  easing: 'ease',
+  speed: 500,
+  showSpinner: false,
+  trickleSpeed: 200,
+  minimum: 0.3
+})
+
+const router = useRouter()
 const themeStore = useThemeStore()
 const sidebarStore = useSidebarStore()
 const isCollapsed = computed(() => sidebarStore.isCollapsed)
@@ -61,6 +74,26 @@ onMounted(() => {
     }
   })
 })
+
+// 监听路由变化显示进度条
+router.beforeEach((to, from, next) => {
+  NProgress.start()
+  next()
+})
+
+router.afterEach(() => {
+  NProgress.done()
+})
+
+// 添加自定义样式
+const style = document.createElement('style')
+style.textContent = `
+  #nprogress .bar {
+    background: var(--theme-color) !important;
+    height: 3px !important;
+  }
+`
+document.head.appendChild(style)
 </script>
 
 <style>
