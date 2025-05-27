@@ -56,6 +56,10 @@
           <Icon name="history" :color="isActive('/history') ? 'var(--theme-color)' : '#909399'" />
           <span>历史记录</span>
         </router-link>
+        <router-link to="/activity" class="nav-item" :class="{ 'active': isActive('/activity') }">
+          <Icon name="Timer" :color="isActive('/activity') ? 'var(--theme-color)' : '#909399'" />
+          <span>活动记录</span>
+        </router-link>
         <router-link to="/message-board" class="nav-item" :class="{ 'active': isActive('/message-board') }">
           <Icon name="ChatDotRound" :color="isActive('/message-board') ? 'var(--theme-color)' : '#909399'" />
           <span>评论留言</span>

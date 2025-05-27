@@ -31,7 +31,7 @@
 </template>
 
 <script setup>
-import { onMounted, computed } from 'vue'
+import { onMounted, computed, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import Sidebar from './components/Sidebar.vue'
 import TopNavbar from './components/TopNavbar.vue'
@@ -40,6 +40,7 @@ import { useSidebarStore } from './stores/sidebar'
 import zhCn from 'element-plus/dist/locale/zh-cn.mjs'
 import NProgress from 'nprogress'
 import 'nprogress/nprogress.css'
+import { useActivityStore } from './stores/activity'
 
 // 配置NProgress
 NProgress.configure({ 
@@ -53,6 +54,7 @@ NProgress.configure({
 const router = useRouter()
 const themeStore = useThemeStore()
 const sidebarStore = useSidebarStore()
+const activityStore = useActivityStore()
 const isCollapsed = computed(() => sidebarStore.isCollapsed)
 const isDarkTheme = computed(() => themeStore.theme === 'dark')
 
@@ -73,6 +75,12 @@ onMounted(() => {
       sidebarStore.collapseSidebar()
     }
   })
+  
+  // 初始化活动追踪
+  activityStore.initializeTracking()
+  
+  // 添加页面可见性变化监听
+  document.addEventListener('visibilitychange', handleVisibilityChange)
 })
 
 // 监听路由变化显示进度条
@@ -81,9 +89,34 @@ router.beforeEach((to, from, next) => {
   next()
 })
 
-router.afterEach(() => {
+router.afterEach((to) => {
   NProgress.done()
+  // 确保路由对象存在且有路径
+  if (to && to.path) {
+    // 记录页面访问
+    activityStore.recordPageVisit(to.path, to.meta?.title || to.name || '未知页面')
+  }
 })
+
+// 在 onBeforeUnmount 中清理
+onBeforeUnmount(() => {
+  // 停止活动追踪
+  activityStore.stopTracking()
+  
+  // 移除页面可见性变化监听
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
+})
+
+// 处理页面可见性变化
+const handleVisibilityChange = () => {
+  if (document.hidden) {
+    // 页面隐藏时停止追踪
+    activityStore.stopTracking()
+  } else {
+    // 页面可见时开始新的会话
+    activityStore.startNewSession()
+  }
+}
 
 // 添加自定义样式
 const style = document.createElement('style')

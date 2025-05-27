@@ -127,6 +127,14 @@ const routes = [
     }
   },
   {
+    path: '/activity',
+    name: 'Activity',
+    component: () => import('../views/ActivityStats.vue'),
+    meta: {
+      title: '活动记录 - 在线影视网站'
+    }
+  },
+  {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
     component: () => import('@/views/NotFound.vue'),
