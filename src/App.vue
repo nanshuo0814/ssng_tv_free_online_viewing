@@ -26,6 +26,7 @@
           </Suspense>
         </div>
       </div>
+      <HealthReminderOverlay />
     </div>
   </el-config-provider>
 </template>
@@ -41,6 +42,7 @@ import zhCn from 'element-plus/dist/locale/zh-cn.mjs'
 import NProgress from 'nprogress'
 import 'nprogress/nprogress.css'
 import { useActivityStore } from './stores/activity'
+import HealthReminderOverlay from './components/HealthReminderOverlay.vue'
 
 // 配置NProgress
 NProgress.configure({ 

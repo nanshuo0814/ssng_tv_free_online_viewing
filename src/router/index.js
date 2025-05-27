@@ -4,6 +4,7 @@ import HomePage from '../views/HomePage.vue'
 import MovieNav from '../views/MovieNav.vue'
 import AnimeNav from '../views/AnimeNav.vue'
 import VarietyNav from '../views/VarietyNav.vue'
+import HealthReminder from '../views/HealthReminder.vue'
 
 const routes = [
   {
@@ -132,6 +133,15 @@ const routes = [
     component: () => import('../views/ActivityStats.vue'),
     meta: {
       title: '活动记录 - 在线影视网站'
+    }
+  },
+  {
+    path: '/health-reminder',
+    name: 'health-reminder',
+    component: HealthReminder,
+    meta: {
+      title: '健康提醒',
+      icon: 'Bell'
     }
   },
   {

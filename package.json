@@ -20,6 +20,7 @@
     "leancloud-storage": "^4.15.2",
     "nprogress": "^0.2.0",
     "pinia": "^2.1.6",
+    "pinia-plugin-persistedstate": "^4.3.0",
     "qrcode.vue": "^3.6.0",
     "twikoo": "^1.6.44",
     "vue": "^3.3.4",

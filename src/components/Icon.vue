@@ -46,6 +46,7 @@ const iconName = computed(() => {
     'ExitFullScreen': 'Close', // 退出全屏图标
     'ArrowDown': 'ArrowDown', // 下拉箭头
     'Palette': 'Brush', // 调色板图标
+    'Bell': 'Bell', // 健康提醒图标
     // 添加天气图标
     'Sunny': 'Sunny',
     'Cloudy': 'Cloudy',
