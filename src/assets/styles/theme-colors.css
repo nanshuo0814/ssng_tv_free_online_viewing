@@ -1,0 +1,75 @@
+/* 主题色变量 - 蓝色（默认） */
+[data-color-theme="blue"] {
+  --theme-color: #409eff;
+  --theme-color-light: #66b1ff;
+  --theme-color-dark: #337ecc;
+  --theme-color-rgb: 64, 158, 255;
+}
+
+/* 主题色变量 - 绿色 */
+[data-color-theme="green"] {
+  --theme-color: #67c23a;
+  --theme-color-light: #85ce61;
+  --theme-color-dark: #529b2e;
+  --theme-color-rgb: 103, 194, 58;
+}
+
+/* 主题色变量 - 紫色 */
+[data-color-theme="purple"] {
+  --theme-color: #8e44ad;
+  --theme-color-light: #a569bd;
+  --theme-color-dark: #6c3483;
+  --theme-color-rgb: 142, 68, 173;
+}
+
+/* 主题色变量 - 红色 */
+[data-color-theme="red"] {
+  --theme-color: #f56c6c;
+  --theme-color-light: #f78989;
+  --theme-color-dark: #c45656;
+  --theme-color-rgb: 245, 108, 108;
+}
+
+/* 主题色变量 - 橙色 */
+[data-color-theme="orange"] {
+  --theme-color: #e6a23c;
+  --theme-color-light: #ebb563;
+  --theme-color-dark: #b88230;
+  --theme-color-rgb: 230, 162, 60;
+}
+
+/* 应用主题色的样式 */
+.theme-color {
+  color: var(--theme-color) !important;
+}
+
+.theme-color-bg {
+  background-color: var(--theme-color) !important;
+}
+
+.theme-color-border {
+  border-color: var(--theme-color) !important;
+}
+
+/* 导航栏应用主题色 */
+.sidebar .nav-item.active {
+  color: var(--theme-color) !important;
+  border-left-color: var(--theme-color) !important;
+}
+
+.sidebar .nav-item:hover {
+  color: var(--theme-color) !important;
+}
+
+.sidebar-logo .logo-text {
+  color: var(--theme-color) !important;
+}
+
+/* 顶部导航栏图标应用主题色 */
+.nav-action:hover {
+  color: var(--theme-color) !important;
+}
+
+.nav-action.active {
+  color: var(--theme-color) !important;
+} 

@@ -1,0 +1,94 @@
+:root {
+  /* 内容边距 */
+  --content-padding: 40px;
+  
+  /* 主题色 */
+  --primary-color: #2b9fff;
+  --primary-color-dark: #007be6;
+  --secondary-color: #5f6368;
+  --accent-color: #ff6c3e;
+  
+  /* RGB值，用于rgba颜色 */
+  --primary-color-rgb: 43, 159, 255;
+  
+  /* 布局尺寸 */
+  --sidebar-width: 240px;
+  --sidebar-width-collapsed: 64px;
+  --topbar-height: 64px;
+  
+  /* 文字颜色 */
+  --text-color: #333333;
+  --text-color-light: #666666;
+  
+  /* 背景颜色 */
+  --background-color: #f5f7fa;
+  --card-background: #ffffff;
+  --hover-background: #eaeaea;
+  --search-background: rgba(0, 0, 0, 0.04);
+  
+  /* 边框颜色 */
+  --border-color: #e0e0e0;
+  
+  /* 阴影 */
+  --box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  
+  /* 过渡 */
+  --transition-normal: all 0.3s ease;
+  
+  /* 圆角 */
+  --border-radius-small: 4px;
+  --border-radius-medium: 8px;
+  --border-radius-large: 12px;
+}
+
+/* 暗色主题 */
+[data-theme="dark"] {
+  /* 主题色 */
+  --primary-color: #2b9fff;
+  --primary-color-dark: #007be6;
+  --secondary-color: #9aa0a6;
+  --accent-color: #ff7a59;
+  
+  /* 文字颜色 */
+  --text-color: #e0e0e0;
+  --text-color-light: #9e9e9e;
+  
+  /* 背景颜色 */
+  --background-color: #121212;
+  --card-background: #1e1e1e;
+  --hover-background: #2c2c2c;
+  --search-background: rgba(255, 255, 255, 0.08);
+  
+  /* 边框颜色 */
+  --border-color: #333333;
+  
+  /* 阴影 */
+  --box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.3);
+}
+
+/* 响应式断点 */
+@media (max-width: 1200px) {
+  :root {
+    --content-padding: 30px;
+  }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --content-padding: 20px;
+    --sidebar-width-collapsed: 0;
+  }
+}
+
+@media (max-width: 576px) {
+  :root {
+    --content-padding: 15px;
+  }
+}
+
+@media (max-width: 992px) {
+  :root {
+    --sidebar-width-collapsed: 0;
+    --topbar-height: 56px;
+  }
+} 

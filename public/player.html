@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>视频播放器</title>
+  <link rel="icon" href="/favicon.ico">
+  <!-- 引入ArtPlayer样式 -->
+  <script src="https://cdn.jsdelivr.net/npm/artplayer/dist/artplayer.js"></script>
+  <!-- 引入HLS.js支持m3u8播放 -->
+  <script src="https://cdn.jsdelivr.net/npm/hls.js/dist/hls.min.js"></script>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #000;
+      font-family: 'Roboto', 'Helvetica', 'Arial', sans-serif;
+    }
+    
+    .player-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+    
+    .iframe-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+    
+    .player-header {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 60px;
+      background-color: rgba(0, 0, 0, 0.5);
+      color: #fff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 20px;
+      box-sizing: border-box;
+      z-index: 10;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    
+    .player-container:hover .player-header {
+      opacity: 1;
+    }
+    
+    .player-title {
+      font-size: 18px;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 80%;
+    }
+    
+    .player-actions {
+      display: flex;
+      gap: 15px;
+    }
+    
+    .player-button {
+      background: none;
+      border: none;
+      color: #fff;
+      cursor: pointer;
+      font-size: 14px;
+      padding: 8px 15px;
+      border-radius: 4px;
+      background-color: rgba(64, 158, 255, 0.8);
+      transition: background-color 0.3s;
+    }
+    
+    .player-button:hover {
+      background-color: rgba(64, 158, 255, 1);
+    }
+    
+    .loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #fff;
+      font-size: 18px;
+    }
+  </style>
+</head>
+<body>
+  <div id="app" class="player-container">
+    <div class="player-header">
+      <div class="player-title" id="videoTitle">加载中...</div>
+      <div class="player-actions">
+        <button class="player-button" onclick="window.close()">关闭</button>
+        <button class="player-button" onclick="window.history.back()">返回</button>
+      </div>
+    </div>
+    
+    <div id="loadingIndicator" class="loading">加载中...</div>
+    
+    <div id="playerFrame" class="iframe-container"></div>
+  </div>
+  
+  <script>
+    // 获取URL参数
+    function getQueryParam(name) {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get(name);
+    }
+
+    // 视频地址和标题
+    const videoUrl = getQueryParam('url');
+    const videoTitle = getQueryParam('title') || '视频播放';
+    const subtitleUrl = getQueryParam('subtitle') || '';
+    
+    // 更新页面标题
+    document.title = videoTitle;
+    document.getElementById('videoTitle').textContent = videoTitle;
+    
+    // 初始化播放器
+    function initializePlayer(url) {
+      if (!url) {
+        document.getElementById('loadingIndicator').textContent = '播放地址无效';
+        return;
+      }
+      
+      document.getElementById('loadingIndicator').style.display = 'none';
+      
+      const art = new Artplayer({
+        container: '#playerFrame',
+        url: url,
+        title: videoTitle,
+        volume: 0.8,
+        isLive: false,
+        muted: false,
+        autoplay: true,
+        pip: true,
+        autoSize: true,
+        autoMini: true,
+        screenshot: true,
+        setting: true,
+        loop: false,
+        flip: true,
+        playbackRate: true,
+        aspectRatio: true,
+        fullscreen: true,
+        fullscreenWeb: true,
+        subtitleOffset: true,
+        miniProgressBar: true,
+        mutex: true,
+        backdrop: true,
+        playsInline: true,
+        autoPlayback: true,
+        theme: '#23ade5',
+        lang: navigator.language.toLowerCase(),
+        moreVideoAttr: {
+          crossOrigin: 'anonymous',
+        },
+        subtitles: subtitleUrl ? [{
+          url: subtitleUrl,
+          type: 'vtt',
+          default: true
+        }] : [],
+        customType: {
+          m3u8: function(video, url) {
+            if (Hls.isSupported()) {
+              const hls = new Hls({
+                maxBufferLength: 60,
+                maxMaxBufferLength: 90,
+                maxBufferSize: 100 * 1000 * 1000,
+                maxBufferHole: 1,
+                lowLatencyMode: false,
+                manifestLoadingMaxRetry: 6,
+                levelLoadingMaxRetry: 6, 
+                fragLoadingMaxRetry: 6,
+                fragLoadingMaxRetryTimeout: 10000
+              });
+              
+              hls.loadSource(url);
+              hls.attachMedia(video);
+              
+              hls.on(Hls.Events.ERROR, function(event, data) {
+                if (data.fatal) {
+                  switch (data.type) {
+                    case Hls.ErrorTypes.NETWORK_ERROR:
+                      console.error('HLS网络错误:', data);
+                      hls.startLoad();
+                      break;
+                    case Hls.ErrorTypes.MEDIA_ERROR:
+                      console.error('HLS媒体错误:', data);
+                      hls.recoverMediaError();
+                      break;
+                    default:
+                      console.error('HLS致命错误:', data);
+                      break;
+                  }
+                }
+              });
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+              video.src = url;
+            }
+          }
+        }
+      });
+      
+      window.art = art;
+    }
+    
+    // 页面加载完成后初始化播放器
+    window.onload = function() {
+      initializePlayer(videoUrl);
+    };
+  </script>
+</body>
+</html> 

@@ -1,0 +1,68 @@
+# 依赖目录
+node_modules/
+.pnp
+.pnp.js
+
+# 本地开发环境
+.env.local
+.env.*.local
+
+# 日志文件
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# 编辑器目录和文件
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 构建输出目录
+dist/
+build/
+out/
+
+# Vue CLI 生成的文件
+.vuepress/dist
+
+# 测试相关
+coverage/
+.nyc_output/
+
+# 缓存
+.cache/
+.temp/
+
+# 其他
+*.log
+*.tmp
+*.bak
+*.pid
+*.seed
+*.pid.lock
+
+# 本地配置文件
+.local
+
+# 调试文件
+debug
+
+# 包锁文件
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# 类型Script 声明文件
+*.d.ts
+
+# 自定义
+*.local

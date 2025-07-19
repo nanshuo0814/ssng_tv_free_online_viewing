@@ -1,0 +1,17 @@
+<svg width="180" height="250" viewBox="0 0 180 250" xmlns="http://www.w3.org/2000/svg">
+  <!-- 背景 -->
+  <rect width="180" height="250" fill="#e0e0e0"/>
+  
+  <!-- 电影图标 -->
+  <g transform="translate(60, 85)">
+    <rect x="0" y="0" width="60" height="40" rx="5" fill="#a0a0a0"/>
+    <circle cx="15" cy="15" r="10" fill="#d0d0d0"/>
+    <circle cx="45" cy="15" r="10" fill="#d0d0d0"/>
+    <rect x="-10" y="15" width="20" height="3" fill="#d0d0d0"/>
+    <rect x="30" y="15" width="20" height="3" fill="#d0d0d0"/>
+  </g>
+  
+  <!-- 文字 -->
+  <text x="90" y="160" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="#707070">暂无图片</text>
+  <text x="90" y="180" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#808080">No Image</text>
+</svg> 
